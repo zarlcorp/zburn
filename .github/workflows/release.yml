@@ -1,0 +1,10 @@
+name: Release
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  release:
+    uses: zarlcorp/.github/.github/workflows/go-release.yml@main
+    with:
+      binary-name: zburn
