@@ -105,9 +105,15 @@ func (m passwordModel) handleSubmit() (passwordModel, tea.Cmd) {
 func (m passwordModel) View() string {
 	title := zstyle.Title.Render("zburn")
 
-	prompt := "master password:"
-	if m.confirming {
-		prompt = "confirm password:"
+	var prompt string
+	if m.firstRun {
+		if m.confirming {
+			prompt = "confirm password:"
+		} else {
+			prompt = "create master password:"
+		}
+	} else {
+		prompt = "master password:"
 	}
 
 	s := fmt.Sprintf("\n  %s\n\n  %s\n  %s\n", title, prompt, m.input.View())
