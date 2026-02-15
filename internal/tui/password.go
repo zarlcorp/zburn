@@ -50,7 +50,7 @@ func (m passwordModel) Init() tea.Cmd {
 func (m passwordModel) Update(msg tea.Msg) (passwordModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		if key.Matches(msg, zstyle.KeyQuit) && msg.Type != tea.KeyEnter {
+		if msg.Type == tea.KeyCtrlC {
 			return m, tea.Quit
 		}
 
