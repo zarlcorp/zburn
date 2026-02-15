@@ -53,8 +53,20 @@ func TestPasswordViewShowsPrompt(t *testing.T) {
 	if !strings.Contains(view, "master password") {
 		t.Error("view should show master password prompt")
 	}
+	if strings.Contains(view, "create") {
+		t.Error("non-first-run view should not contain 'create'")
+	}
 	if !strings.Contains(view, "zburn") {
 		t.Error("view should show title")
+	}
+}
+
+func TestPasswordFirstRunShowsCreate(t *testing.T) {
+	m := newPasswordModel(true)
+	view := m.View()
+
+	if !strings.Contains(view, "create master password") {
+		t.Error("first-run view should show 'create master password'")
 	}
 }
 
