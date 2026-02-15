@@ -8,7 +8,7 @@ require (
 	github.com/zarlcorp/core/pkg/zapp v0.2.0
 	github.com/zarlcorp/core/pkg/zcrypto v0.2.0
 	github.com/zarlcorp/core/pkg/zfilesystem v0.2.0
-	github.com/zarlcorp/core/pkg/zstyle v0.1.1-0.20260215172224-4e0fb1b385a1
+	github.com/zarlcorp/core/pkg/zstyle v0.2.0
 	golang.org/x/term v0.40.0
 )
 
