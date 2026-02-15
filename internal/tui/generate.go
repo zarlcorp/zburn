@@ -45,16 +45,16 @@ func newGenerateModel(id identity.Identity) generateModel {
 
 func identityFields(id identity.Identity) []identityField {
 	return []identityField{
-		{"ID", id.ID},
-		{"Name", id.FirstName + " " + id.LastName},
-		{"Email", id.Email},
-		{"Phone", id.Phone},
-		{"Street", id.Street},
-		{"City", id.City},
-		{"State", id.State},
-		{"Zip", id.Zip},
-		{"DOB", id.DOB.Format("2006-01-02")},
-		{"Password", id.Password},
+		{"id", id.ID},
+		{"name", id.FirstName + " " + id.LastName},
+		{"email", id.Email},
+		{"phone", id.Phone},
+		{"street", id.Street},
+		{"city", id.City},
+		{"state", id.State},
+		{"zip", id.Zip},
+		{"dob", id.DOB.Format("2006-01-02")},
+		{"password", id.Password},
 	}
 }
 

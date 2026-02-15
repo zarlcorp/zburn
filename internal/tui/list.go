@@ -141,7 +141,7 @@ func (m listModel) View() string {
 	}
 
 	// header
-	header := fmt.Sprintf("  %-10s %-20s %-30s %s", "ID", "Name", "Email", "Created")
+	header := fmt.Sprintf("  %-10s %-20s %-30s %s", "id", "name", "email", "created")
 	s += zstyle.Subtitle.Render(header) + "\n"
 
 	for i, id := range m.identities {

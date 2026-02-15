@@ -18,10 +18,10 @@ const (
 )
 
 var menuItems = []string{
-	"Generate identity",
-	"Generate email (quick)",
-	"Browse saved identities",
-	"Quit",
+	"generate identity",
+	"generate email (quick)",
+	"browse saved identities",
+	"quit",
 }
 
 // menuModel is the main menu view.
