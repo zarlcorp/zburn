@@ -118,8 +118,8 @@ make run
 
 ## Learn More
 
-- [Website](https://zarlcorp.github.io/zburn) — Documentation and install instructions
-- [zarlcorp/core](https://github.com/zarlcorp/core) — shared Go packages
+- [zarlcorp.github.io/zburn](https://zarlcorp.github.io/zburn) — documentation and install instructions
+- [zarlcorp/core](https://github.com/zarlcorp/core) — shared go packages
 - [MANIFESTO.md](https://github.com/zarlcorp/core/blob/main/MANIFESTO.md) — philosophy and architecture
 
 ---
