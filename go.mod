@@ -9,6 +9,7 @@ require (
 	github.com/zarlcorp/core/pkg/zcrypto v0.2.0
 	github.com/zarlcorp/core/pkg/zfilesystem v0.2.0
 	github.com/zarlcorp/core/pkg/zstyle v0.1.0
+	golang.org/x/term v0.40.0
 )
 
 require (

@@ -8,6 +8,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/zarlcorp/core/pkg/zapp"
+	"github.com/zarlcorp/zburn/internal/cli"
 	"github.com/zarlcorp/zburn/internal/tui"
 )
 
@@ -42,6 +43,18 @@ func runCLI(_ context.Context, cmd string) {
 	switch cmd {
 	case "version":
 		fmt.Printf("zburn %s\n", version)
+	case "email":
+		cli.CmdEmail()
+	case "identity":
+		cli.CmdIdentity(os.Args[2:])
+	case "list":
+		cli.CmdList(os.Args[2:])
+	case "forget":
+		if len(os.Args) < 3 {
+			fmt.Fprintln(os.Stderr, "usage: zburn forget <id>")
+			os.Exit(1)
+		}
+		cli.CmdForget(os.Args[2])
 	default:
 		fmt.Fprintf(os.Stderr, "zburn: unknown command %q\n", cmd)
 		os.Exit(1)
