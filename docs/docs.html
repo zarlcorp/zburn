@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>zburn — Documentation</title>
-  <meta name="description" content="Usage documentation for zburn: disposable identity generator with interactive TUI and scriptable CLI.">
+  <title>zburn — documentation</title>
+  <meta name="description" content="usage documentation for zburn: disposable identity generator with interactive TUI and scriptable CLI.">
   <link rel="stylesheet" href="https://zarlcorp.github.io/shared.css">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -25,20 +25,20 @@
       <div class="window-content">
         <div class="doc-content">
 
-          <p>Run <code>zburn</code> with no arguments to launch the interactive terminal interface.</p>
+          <p>run <code>zburn</code> with no arguments to launch the interactive terminal interface.</p>
 
           <pre><code>$ zburn</code></pre>
 
-          <p>The TUI walks you through:</p>
+          <p>the TUI walks you through:</p>
           <ol>
-            <li><strong>Master password</strong> &mdash; create on first run, then enter to unlock</li>
-            <li><strong>Menu</strong> &mdash; generate, browse saved identities, or quick-copy a burner email</li>
-            <li><strong>Generate</strong> &mdash; create a new disposable identity and optionally save it</li>
-            <li><strong>Browse</strong> &mdash; list and manage all saved identities</li>
-            <li><strong>Detail</strong> &mdash; inspect individual fields and copy them to the clipboard</li>
+            <li><strong>master password</strong> &mdash; create on first run, then enter to unlock</li>
+            <li><strong>menu</strong> &mdash; generate, browse saved identities, or quick-copy a burner email</li>
+            <li><strong>generate</strong> &mdash; create a new disposable identity and optionally save it</li>
+            <li><strong>browse</strong> &mdash; list and manage all saved identities</li>
+            <li><strong>detail</strong> &mdash; inspect individual fields and copy them to the clipboard</li>
           </ol>
 
-          <p>All generated data is encrypted at rest using your master password.</p>
+          <p>all generated data is encrypted at rest using your master password.</p>
 
         </div>
       </div>
@@ -49,52 +49,52 @@
       <div class="window-content">
         <div class="doc-content">
 
-          <h3>Generate a burner email</h3>
+          <h3>generate a burner email</h3>
 
           <pre><code>$ zburn email</code></pre>
 
-          <p>Prints a random burner email to stdout.</p>
+          <p>prints a random burner email to stdout.</p>
 
-          <h3>Generate a complete identity</h3>
+          <h3>generate a complete identity</h3>
 
           <pre><code>$ zburn identity</code></pre>
 
-          <p>Outputs a full disposable identity: name, email, address, phone, password.</p>
+          <p>outputs a full disposable identity: name, email, address, phone, password.</p>
 
           <table>
             <thead>
-              <tr><th>Flag</th><th>Description</th></tr>
+              <tr><th>flag</th><th>description</th></tr>
             </thead>
             <tbody>
-              <tr><td><code>--json</code></td><td>Output as JSON instead of formatted text</td></tr>
-              <tr><td><code>--save</code></td><td>Encrypt and save to the store (prompts for master password)</td></tr>
+              <tr><td><code>--json</code></td><td>output as JSON instead of formatted text</td></tr>
+              <tr><td><code>--save</code></td><td>encrypt and save to the store (prompts for master password)</td></tr>
             </tbody>
           </table>
 
-          <p>Example &mdash; generate, format as JSON, and save:</p>
+          <p>example &mdash; generate, format as JSON, and save:</p>
 
           <pre><code>$ zburn identity --json --save</code></pre>
 
-          <h3>List saved identities</h3>
+          <h3>list saved identities</h3>
 
           <pre><code>$ zburn list</code></pre>
 
           <table>
             <thead>
-              <tr><th>Flag</th><th>Description</th></tr>
+              <tr><th>flag</th><th>description</th></tr>
             </thead>
             <tbody>
-              <tr><td><code>--json</code></td><td>Output as JSON instead of formatted text</td></tr>
+              <tr><td><code>--json</code></td><td>output as JSON instead of formatted text</td></tr>
             </tbody>
           </table>
 
-          <h3>Delete a saved identity</h3>
+          <h3>delete a saved identity</h3>
 
           <pre><code>$ zburn forget &lt;id&gt;</code></pre>
 
-          <p>Permanently removes a saved identity by its ID.</p>
+          <p>permanently removes a saved identity by its ID.</p>
 
-          <h3>Print version</h3>
+          <h3>print version</h3>
 
           <pre><code>$ zburn version</code></pre>
 
@@ -107,13 +107,13 @@
       <div class="window-content">
         <div class="doc-content">
 
-          <p>Saved identities are encrypted at rest. zburn uses <strong>AES-256-GCM</strong> for encryption with a master key derived from your password via <strong>Argon2id</strong> key derivation.</p>
+          <p>saved identities are encrypted at rest. zburn uses <strong>AES-256-GCM</strong> for encryption with a master key derived from your password via <strong>Argon2id</strong> key derivation.</p>
 
-          <p>Data is stored locally in:</p>
+          <p>data is stored locally in:</p>
 
           <pre><code>~/.local/share/zburn/</code></pre>
 
-          <p>No data ever leaves your machine. There are no accounts, no servers, no sync. Your identities live on your disk, encrypted with a key only you know.</p>
+          <p>no data ever leaves your machine. there are no accounts, no servers, no sync. your identities live on your disk, encrypted with a key only you know.</p>
 
         </div>
       </div>
@@ -121,7 +121,7 @@
 
     <footer class="footer">
       <p><a href="index.html">&larr; back to zburn</a></p>
-      <p>Open source. MIT licensed.</p>
+      <p>open source. MIT licensed.</p>
     </footer>
 
   </div>
