@@ -91,10 +91,13 @@ func (m menuModel) selectItem() tea.Cmd {
 }
 
 func (m menuModel) View() string {
-	logo := zstyle.StyledLogo(lipgloss.NewStyle().Foreground(zstyle.ZburnAccent))
-	ver := zstyle.MutedText.Render("zburn " + m.version)
+	indent := lipgloss.NewStyle().MarginLeft(2)
+	logo := indent.Render(
+		zstyle.StyledLogo(lipgloss.NewStyle().Foreground(zstyle.ZburnAccent)),
+	)
+	ver := indent.Render(zstyle.MutedText.Render("zburn " + m.version))
 
-	s := fmt.Sprintf("\n  %s\n  %s\n\n", logo, ver)
+	s := fmt.Sprintf("\n%s\n%s\n\n", logo, ver)
 
 	for i, item := range menuItems {
 		if m.cursor == i {
