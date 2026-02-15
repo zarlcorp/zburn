@@ -798,11 +798,11 @@ func TestIdentityFields(t *testing.T) {
 	}
 
 	// spot check
-	if fields[0].label != "ID" || fields[0].value != id.ID {
-		t.Errorf("field[0] = %v, want ID=%s", fields[0], id.ID)
+	if fields[0].label != "id" || fields[0].value != id.ID {
+		t.Errorf("field[0] = %v, want id=%s", fields[0], id.ID)
 	}
-	if fields[2].label != "Email" || fields[2].value != id.Email {
-		t.Errorf("field[2] = %v, want Email=%s", fields[2], id.Email)
+	if fields[2].label != "email" || fields[2].value != id.Email {
+		t.Errorf("field[2] = %v, want email=%s", fields[2], id.Email)
 	}
 }
 
