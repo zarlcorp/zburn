@@ -9,14 +9,17 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+  <nav class="bar">
+    <div class="container">
+      <a href="https://zarlcorp.github.io" class="nav-brand">zarlcorp</a>
+      <a href="docs.html">docs</a>
+      <a href="https://github.com/zarlcorp/zburn">github</a>
+    </div>
+  </nav>
+
   <div class="landing">
     <div class="container">
-
-      <nav class="nav">
-        <a href="https://zarlcorp.github.io" class="nav-brand">zarlcorp</a>
-        <a href="docs.html">Docs</a>
-        <a href="https://github.com/zarlcorp/zburn">GitHub</a>
-      </nav>
 
       <header class="hero">
         <div class="logo">zburn</div>
@@ -24,12 +27,17 @@
       </header>
 
       <section class="features">
-        <ul class="feature-list">
-          <li>Generate burner emails, names, addresses, passwords</li>
-          <li>Encrypted local storage with AES-256-GCM</li>
-          <li>Interactive TUI + scriptable CLI</li>
-          <li>Copy to clipboard instantly</li>
-        </ul>
+        <div class="window">
+          <div class="window-title">features</div>
+          <div class="window-content">
+            <ul class="feature-list">
+              <li>Generate burner emails, names, addresses, passwords</li>
+              <li>Encrypted local storage with AES-256-GCM</li>
+              <li>Interactive TUI + scriptable CLI</li>
+              <li>Copy to clipboard instantly</li>
+            </ul>
+          </div>
+        </div>
       </section>
 
       <section class="install">
@@ -38,11 +46,19 @@
             <div class="install-cmd"><span class="prompt">$ </span>brew install zarlcorp/tap/zburn</div>
           </div>
           <div class="install-linux">
-            <div class="install-cmd"><span class="prompt">$ </span>curl -sL https://github.com/zarlcorp/zburn/releases/latest/download/zburn_linux_amd64 -o zburn && chmod +x zburn</div>
+            <div class="install-cmd"><span class="prompt">$ </span>curl -sSL https://zarlcorp.github.io/install.sh | sh -s -- zburn</div>
           </div>
         </div>
         <script src="https://zarlcorp.github.io/install.js"></script>
       </section>
+
+      <div class="landing-links">
+        <a href="docs.html">docs</a>
+        <span class="sep">/</span>
+        <a href="https://zarlcorp.github.io">zarlcorp</a>
+        <span class="sep">/</span>
+        <a href="https://github.com/zarlcorp/zburn">github</a>
+      </div>
 
       <footer class="footer">
         <p>Open source. MIT licensed.</p>
@@ -51,5 +67,6 @@
 
     </div>
   </div>
+
 </body>
 </html>
