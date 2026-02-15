@@ -104,8 +104,11 @@ func (m passwordModel) handleSubmit() (passwordModel, tea.Cmd) {
 }
 
 func (m passwordModel) View() string {
-	logo := zstyle.StyledLogo(lipgloss.NewStyle().Foreground(zstyle.ZburnAccent))
-	toolName := zstyle.MutedText.Render("zburn")
+	indent := lipgloss.NewStyle().MarginLeft(2)
+	logo := indent.Render(
+		zstyle.StyledLogo(lipgloss.NewStyle().Foreground(zstyle.ZburnAccent)),
+	)
+	toolName := indent.Render(zstyle.MutedText.Render("zburn"))
 
 	var prompt string
 	if m.firstRun {
@@ -118,7 +121,7 @@ func (m passwordModel) View() string {
 		prompt = "master password:"
 	}
 
-	s := fmt.Sprintf("\n  %s\n  %s\n\n  %s\n  %s\n", logo, toolName, prompt, m.input.View())
+	s := fmt.Sprintf("\n%s\n%s\n\n  %s\n  %s\n", logo, toolName, prompt, m.input.View())
 
 	if m.errMsg != "" {
 		s += "\n  " + zstyle.StatusErr.Render(m.errMsg)

@@ -5,10 +5,11 @@ go 1.26.0
 require (
 	github.com/charmbracelet/bubbles v1.0.0
 	github.com/charmbracelet/bubbletea v1.3.10
+	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/zarlcorp/core/pkg/zapp v0.2.0
 	github.com/zarlcorp/core/pkg/zcrypto v0.2.0
 	github.com/zarlcorp/core/pkg/zfilesystem v0.3.0
-	github.com/zarlcorp/core/pkg/zstyle v0.3.0
+	github.com/zarlcorp/core/pkg/zstyle v0.4.0
 	golang.org/x/term v0.40.0
 )
 
@@ -18,7 +19,6 @@ require (
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/charmbracelet/colorprofile v0.4.1 // indirect
-	github.com/charmbracelet/lipgloss v1.1.0 // indirect
 	github.com/charmbracelet/x/ansi v0.11.6 // indirect
 	github.com/charmbracelet/x/cellbuf v0.0.15 // indirect
 	github.com/charmbracelet/x/term v0.2.2 // indirect
