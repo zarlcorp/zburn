@@ -9,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/zarlcorp/core/pkg/zapp"
 	"github.com/zarlcorp/zburn/internal/cli"
+	"github.com/zarlcorp/zburn/internal/identity"
 	"github.com/zarlcorp/zburn/internal/tui"
 )
 
@@ -62,7 +63,20 @@ func runCLI(_ context.Context, cmd string) {
 }
 
 func runTUI() error {
-	p := tea.NewProgram(tui.New(version))
-	_, err := p.Run()
-	return err
+	dataDir := cli.DataDir()
+	gen := identity.New()
+	firstRun := cli.IsFirstRun(dataDir)
+
+	m := tui.New(version, dataDir, gen, firstRun)
+	p := tea.NewProgram(m)
+	finalModel, err := p.Run()
+	if err != nil {
+		return err
+	}
+
+	if fm, ok := finalModel.(tui.Model); ok {
+		fm.Close()
+	}
+
+	return nil
 }
