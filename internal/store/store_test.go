@@ -6,10 +6,11 @@ import (
 	"time"
 
 	"github.com/zarlcorp/core/pkg/zfilesystem"
+	"github.com/zarlcorp/zburn/internal/identity"
 )
 
-func newTestIdentity(id string, createdAt time.Time) Identity {
-	return Identity{
+func newTestIdentity(id string, createdAt time.Time) identity.Identity {
+	return identity.Identity{
 		ID:        id,
 		FirstName: "Jane",
 		LastName:  "Doe",
@@ -205,7 +206,7 @@ func TestCloseErasesKey(t *testing.T) {
 func TestRoundTripPreservesAllFields(t *testing.T) {
 	s, _ := openTestStore(t)
 
-	want := Identity{
+	want := identity.Identity{
 		ID:        "full-fields",
 		FirstName: "Alice",
 		LastName:  "Smith",
@@ -274,7 +275,7 @@ func TestDataPersistsAcrossReopen(t *testing.T) {
 	assertIdentityEqual(t, want, got)
 }
 
-func assertIdentityEqual(t *testing.T, want, got Identity) {
+func assertIdentityEqual(t *testing.T, want, got identity.Identity) {
 	t.Helper()
 
 	checks := []struct {

@@ -6,16 +6,16 @@ import "time"
 
 // Identity holds a complete generated persona.
 type Identity struct {
-	ID        string    // 8-char hex
-	FirstName string
-	LastName  string
-	Email     string    // <adjective><noun><4digits>@zburn.id
-	Phone     string    // US format: (555) XXX-XXXX
-	Street    string
-	City      string
-	State     string    // US state abbreviation
-	Zip       string
-	DOB       time.Time
-	Password  string
-	CreatedAt time.Time
+	ID        string    `json:"id"`
+	FirstName string    `json:"first_name"`
+	LastName  string    `json:"last_name"`
+	Email     string    `json:"email"`
+	Phone     string    `json:"phone"`
+	Street    string    `json:"street"`
+	City      string    `json:"city"`
+	State     string    `json:"state"`
+	Zip       string    `json:"zip"`
+	DOB       time.Time `json:"dob"`
+	Password  string    `json:"password"`
+	CreatedAt time.Time `json:"created_at"`
 }

@@ -10,10 +10,10 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/zarlcorp/core/pkg/zcrypto"
 	"github.com/zarlcorp/core/pkg/zfilesystem"
+	"github.com/zarlcorp/zburn/internal/identity"
 )
 
 const (
@@ -25,22 +25,6 @@ const (
 
 // ErrNotFound is returned when an identity does not exist.
 var ErrNotFound = errors.New("identity not found")
-
-// Identity represents a generated identity.
-type Identity struct {
-	ID        string    `json:"id"`
-	FirstName string    `json:"first_name"`
-	LastName  string    `json:"last_name"`
-	Email     string    `json:"email"`
-	Phone     string    `json:"phone"`
-	Street    string    `json:"street"`
-	City      string    `json:"city"`
-	State     string    `json:"state"`
-	Zip       string    `json:"zip"`
-	DOB       time.Time `json:"dob"`
-	Password  string    `json:"password"`
-	CreatedAt time.Time `json:"created_at"`
-}
 
 // Store manages encrypted identity files on a filesystem.
 type Store struct {
@@ -76,7 +60,7 @@ func Open(fsys zfilesystem.ReadWriteFileFS, password string) (*Store, error) {
 }
 
 // Save encrypts and writes an identity to disk.
-func (s *Store) Save(id Identity) error {
+func (s *Store) Save(id identity.Identity) error {
 	data, err := json.Marshal(id)
 	if err != nil {
 		return fmt.Errorf("save identity: marshal: %w", err)
@@ -96,23 +80,23 @@ func (s *Store) Save(id Identity) error {
 }
 
 // Get decrypts and returns a single identity by ID.
-func (s *Store) Get(id string) (Identity, error) {
+func (s *Store) Get(id string) (identity.Identity, error) {
 	path := identityPath(id)
 
 	ct, err := s.fs.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return Identity{}, ErrNotFound
+			return identity.Identity{}, ErrNotFound
 		}
-		return Identity{}, fmt.Errorf("get identity: read %s: %w", id, err)
+		return identity.Identity{}, fmt.Errorf("get identity: read %s: %w", id, err)
 	}
 
 	return s.decryptIdentity(ct)
 }
 
 // List returns all stored identities sorted by CreatedAt descending.
-func (s *Store) List() ([]Identity, error) {
-	var ids []Identity
+func (s *Store) List() ([]identity.Identity, error) {
+	var ids []identity.Identity
 
 	err := s.fs.WalkDir(identitiesDir, func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -173,15 +157,15 @@ func (s *Store) Close() error {
 	return nil
 }
 
-func (s *Store) decryptIdentity(ct []byte) (Identity, error) {
+func (s *Store) decryptIdentity(ct []byte) (identity.Identity, error) {
 	data, err := zcrypto.Decrypt(s.key, ct)
 	if err != nil {
-		return Identity{}, fmt.Errorf("decrypt identity: %w", err)
+		return identity.Identity{}, fmt.Errorf("decrypt identity: %w", err)
 	}
 
-	var id Identity
+	var id identity.Identity
 	if err := json.Unmarshal(data, &id); err != nil {
-		return Identity{}, fmt.Errorf("unmarshal identity: %w", err)
+		return identity.Identity{}, fmt.Errorf("unmarshal identity: %w", err)
 	}
 
 	return id, nil
