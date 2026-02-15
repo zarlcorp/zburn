@@ -20,7 +20,7 @@ go install github.com/zarlcorp/zburn/cmd/zburn@latest
 
 ## Usage
 
-### TUI Mode (default)
+### Interactive TUI
 
 Run zburn without arguments to launch the interactive terminal interface:
 
@@ -28,19 +28,59 @@ Run zburn without arguments to launch the interactive terminal interface:
 zburn
 ```
 
+The TUI walks you through:
+1. Master password prompt (create on first run, then enter to unlock)
+2. Menu with options to generate, browse, or quick-copy a burner email
+3. Generate view to create and save new identities
+4. Browse view to list and manage saved identities
+5. Detail view to inspect and copy individual identity fields
+
+All generated data is encrypted at rest using your master password.
+
 ### CLI Commands
 
-Check the version:
+Generate a burner email and print to stdout:
+
+```bash
+zburn email
+```
+
+Generate a complete identity:
+
+```bash
+zburn identity
+```
+
+Options:
+- `--json` — output as JSON instead of formatted text
+- `--save` — encrypt and save to the store (prompts for master password)
+
+Example:
+
+```bash
+zburn identity --json --save
+```
+
+List all saved identities:
+
+```bash
+zburn list
+```
+
+Options:
+- `--json` — output as JSON instead of formatted text
+
+Delete a saved identity by ID:
+
+```bash
+zburn forget abc123def456
+```
+
+Print version:
 
 ```bash
 zburn version
 ```
-
-Planned commands (not yet implemented):
-- `zburn email` — generate a burner email
-- `zburn identity` — generate a complete identity
-- `zburn list` — list saved identities
-- `zburn forget <id>` — delete a saved identity
 
 ## Development
 
