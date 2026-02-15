@@ -56,8 +56,8 @@ github.com/zarlcorp/core/pkg/zfilesystem v0.3.0 h1:uYd27g7q5ZVhg+OLQOWpv6A0YBUm6
 github.com/zarlcorp/core/pkg/zfilesystem v0.3.0/go.mod h1:UfH2O9ttdQ+owzsHEHHNynWb9MNoryIeYNaMtAfQuxc=
 github.com/zarlcorp/core/pkg/zoptions v0.1.0 h1:/WgBilZ7tXGfqcq76nd8BOQv/JRaCsj7TLOXE5JNh7s=
 github.com/zarlcorp/core/pkg/zoptions v0.1.0/go.mod h1:JfZ/LnI9wEsmzXpSwmrFRIXCZARt3s9XMUt7UsSbo1s=
-github.com/zarlcorp/core/pkg/zstyle v0.4.0 h1:7VRSSLCJRzhqEQuLixJKZRNK5hyucKG0bdoFemn4CWQ=
-github.com/zarlcorp/core/pkg/zstyle v0.4.0/go.mod h1:LIWzzyQZGVL9i7BsddIkWF02w1+4PAMr+KbtdtTapQk=
+github.com/zarlcorp/core/pkg/zstyle v0.5.0 h1:54qPT6a0nG4RWjVgi2CfqKAaEZygvM/nte6ismeLHB0=
+github.com/zarlcorp/core/pkg/zstyle v0.5.0/go.mod h1:LIWzzyQZGVL9i7BsddIkWF02w1+4PAMr+KbtdtTapQk=
 github.com/zarlcorp/core/pkg/zsync v0.1.0 h1:XR/HFKu+mK/4XkEAkTrcaiCOahyWxqBS5l6XhwgZJwI=
 github.com/zarlcorp/core/pkg/zsync v0.1.0/go.mod h1:uPnywnOHOaotnMrrSzPBeziPPZgtS0aEMZL1XcnrcO4=
 golang.org/x/crypto v0.48.0 h1:/VRzVqiRSggnhY7gNRxPauEQ5Drw9haKdM0jqfcCFts=
