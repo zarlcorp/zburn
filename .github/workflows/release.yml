@@ -11,3 +11,5 @@ jobs:
     uses: zarlcorp/.github/.github/workflows/go-release.yml@main
     with:
       binary-name: zburn
+    secrets:
+      TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
