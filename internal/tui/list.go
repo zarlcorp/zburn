@@ -136,7 +136,10 @@ func (m listModel) View() string {
 
 	if len(m.identities) == 0 {
 		s += "  " + zstyle.MutedText.Render("no saved identities") + "\n"
-		s += "\n  " + zstyle.MutedText.Render("esc back  q quit") + "\n\n"
+		s += "\n"
+		// reserved flash line (empty for empty state)
+		s += "\n"
+		s += "  " + zstyle.MutedText.Render("esc back  q quit") + "\n"
 		return s
 	}
 
@@ -158,14 +161,17 @@ func (m listModel) View() string {
 
 	s += "\n"
 
+	// always reserve a line for flash/confirm to prevent layout shift
 	if m.confirming {
-		s += "  " + zstyle.StatusWarn.Render("delete? y/n") + "\n\n"
+		s += "  " + zstyle.StatusWarn.Render("delete? y/n") + "\n"
 	} else if m.flash != "" {
-		s += "  " + zstyle.StatusOK.Render(m.flash) + "\n\n"
+		s += "  " + zstyle.StatusOK.Render(m.flash) + "\n"
+	} else {
+		s += "\n"
 	}
 
 	help := "j/k navigate  enter view  d delete  esc back  q quit"
-	s += "  " + zstyle.MutedText.Render(help) + "\n\n"
+	s += "  " + zstyle.MutedText.Render(help) + "\n"
 	return s
 }
 

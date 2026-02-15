@@ -164,11 +164,14 @@ func (m generateModel) View() string {
 
 	s += "\n"
 
+	// always reserve a line for flash to prevent layout shift
 	if m.flash != "" {
-		s += "  " + zstyle.StatusOK.Render(m.flash) + "\n\n"
+		s += "  " + zstyle.StatusOK.Render(m.flash) + "\n"
+	} else {
+		s += "\n"
 	}
 
 	help := "s save  c copy all  enter copy field  n new  esc back  q quit"
-	s += "  " + zstyle.MutedText.Render(help) + "\n\n"
+	s += "  " + zstyle.MutedText.Render(help) + "\n"
 	return s
 }

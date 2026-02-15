@@ -6,6 +6,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/zarlcorp/core/pkg/zstyle"
 )
 
@@ -103,7 +104,8 @@ func (m passwordModel) handleSubmit() (passwordModel, tea.Cmd) {
 }
 
 func (m passwordModel) View() string {
-	title := zstyle.Title.Render("zburn")
+	logo := zstyle.StyledLogo(lipgloss.NewStyle().Foreground(zstyle.ZburnAccent))
+	toolName := zstyle.MutedText.Render("zburn")
 
 	var prompt string
 	if m.firstRun {
@@ -116,10 +118,10 @@ func (m passwordModel) View() string {
 		prompt = "master password:"
 	}
 
-	s := fmt.Sprintf("\n  %s\n\n  %s\n  %s\n", title, prompt, m.input.View())
+	s := fmt.Sprintf("\n  %s\n  %s\n\n  %s\n  %s\n", logo, toolName, prompt, m.input.View())
 
 	if m.errMsg != "" {
-		s += "\n  " + zstyle.StatusErr.Render(m.errMsg) + "\n"
+		s += "\n  " + zstyle.StatusErr.Render(m.errMsg)
 	}
 
 	s += "\n"
