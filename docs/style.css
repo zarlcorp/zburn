@@ -1,0 +1,46 @@
+/* zburn site — page-specific overrides */
+/* shared design system lives at zarlcorp.github.io/shared.css */
+
+/* --- landing page: single viewport --- */
+
+.landing {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+}
+
+.landing .hero {
+  padding: 2rem 0 1.5rem;
+}
+
+.landing .tagline {
+  font-size: 1.1rem;
+}
+
+/* features */
+
+.features {
+  text-align: center;
+  padding: 0.75rem 0;
+}
+
+.features .feature-list {
+  display: inline-block;
+  text-align: left;
+}
+
+/* install */
+
+.landing .install {
+  padding: 1.5rem 0;
+  text-align: center;
+}
+
+/* footer */
+
+.landing .footer {
+  padding: 1rem 0 1.5rem;
+}
