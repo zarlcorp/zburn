@@ -138,13 +138,16 @@ func (m detailModel) View() string {
 
 	s += "\n"
 
+	// always reserve a line for flash/confirm to prevent layout shift
 	if m.confirm {
-		s += "  " + zstyle.StatusWarn.Render("delete? y/n") + "\n\n"
+		s += "  " + zstyle.StatusWarn.Render("delete? y/n") + "\n"
 	} else if m.flash != "" {
-		s += "  " + zstyle.StatusOK.Render(m.flash) + "\n\n"
+		s += "  " + zstyle.StatusOK.Render(m.flash) + "\n"
+	} else {
+		s += "\n"
 	}
 
 	help := "enter copy field  c copy all  d delete  esc back  q quit"
-	s += "  " + zstyle.MutedText.Render(help) + "\n\n"
+	s += "  " + zstyle.MutedText.Render(help) + "\n"
 	return s
 }
