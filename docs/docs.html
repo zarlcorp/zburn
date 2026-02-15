@@ -9,104 +9,122 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="container">
 
-    <nav class="nav">
+  <nav class="bar">
+    <div class="container">
       <a href="https://zarlcorp.github.io" class="nav-brand">zarlcorp</a>
-      <a href="index.html">Home</a>
-      <a href="https://github.com/zarlcorp/zburn">GitHub</a>
-    </nav>
+      <a href="index.html">zburn</a>
+      <a href="https://github.com/zarlcorp/zburn">github</a>
+    </div>
+  </nav>
 
-    <div class="doc-content">
+  <div class="container docs-page">
 
-      <h1>zburn docs</h1>
+    <div class="window">
+      <div class="window-title">interactive tui</div>
+      <div class="window-content">
+        <div class="doc-content">
 
-      <h2>Interactive TUI</h2>
+          <p>Run <code>zburn</code> with no arguments to launch the interactive terminal interface.</p>
 
-      <p>Run <code>zburn</code> with no arguments to launch the interactive terminal interface.</p>
+          <pre><code>$ zburn</code></pre>
 
-      <pre><code>$ zburn</code></pre>
+          <p>The TUI walks you through:</p>
+          <ol>
+            <li><strong>Master password</strong> &mdash; create on first run, then enter to unlock</li>
+            <li><strong>Menu</strong> &mdash; generate, browse saved identities, or quick-copy a burner email</li>
+            <li><strong>Generate</strong> &mdash; create a new disposable identity and optionally save it</li>
+            <li><strong>Browse</strong> &mdash; list and manage all saved identities</li>
+            <li><strong>Detail</strong> &mdash; inspect individual fields and copy them to the clipboard</li>
+          </ol>
 
-      <p>The TUI walks you through:</p>
-      <ol>
-        <li><strong>Master password</strong> &mdash; create on first run, then enter to unlock</li>
-        <li><strong>Menu</strong> &mdash; generate, browse saved identities, or quick-copy a burner email</li>
-        <li><strong>Generate</strong> &mdash; create a new disposable identity and optionally save it</li>
-        <li><strong>Browse</strong> &mdash; list and manage all saved identities</li>
-        <li><strong>Detail</strong> &mdash; inspect individual fields and copy them to the clipboard</li>
-      </ol>
+          <p>All generated data is encrypted at rest using your master password.</p>
 
-      <h2>CLI commands</h2>
+        </div>
+      </div>
+    </div>
 
-      <h3>Generate a burner email</h3>
+    <div class="window">
+      <div class="window-title">cli commands</div>
+      <div class="window-content">
+        <div class="doc-content">
 
-      <pre><code>$ zburn email</code></pre>
+          <h3>Generate a burner email</h3>
 
-      <p>Prints a random burner email to stdout.</p>
+          <pre><code>$ zburn email</code></pre>
 
-      <h3>Generate a complete identity</h3>
+          <p>Prints a random burner email to stdout.</p>
 
-      <pre><code>$ zburn identity</code></pre>
+          <h3>Generate a complete identity</h3>
 
-      <p>Outputs a full disposable identity: name, email, address, phone, password.</p>
+          <pre><code>$ zburn identity</code></pre>
 
-      <table>
-        <thead>
-          <tr><th>Flag</th><th>Description</th></tr>
-        </thead>
-        <tbody>
-          <tr><td><code>--json</code></td><td>Output as JSON instead of formatted text</td></tr>
-          <tr><td><code>--save</code></td><td>Encrypt and save to the store (prompts for master password)</td></tr>
-        </tbody>
-      </table>
+          <p>Outputs a full disposable identity: name, email, address, phone, password.</p>
 
-      <p>Example &mdash; generate, format as JSON, and save:</p>
+          <table>
+            <thead>
+              <tr><th>Flag</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>--json</code></td><td>Output as JSON instead of formatted text</td></tr>
+              <tr><td><code>--save</code></td><td>Encrypt and save to the store (prompts for master password)</td></tr>
+            </tbody>
+          </table>
 
-      <pre><code>$ zburn identity --json --save</code></pre>
+          <p>Example &mdash; generate, format as JSON, and save:</p>
 
-      <h3>List saved identities</h3>
+          <pre><code>$ zburn identity --json --save</code></pre>
 
-      <pre><code>$ zburn list</code></pre>
+          <h3>List saved identities</h3>
 
-      <table>
-        <thead>
-          <tr><th>Flag</th><th>Description</th></tr>
-        </thead>
-        <tbody>
-          <tr><td><code>--json</code></td><td>Output as JSON instead of formatted text</td></tr>
-        </tbody>
-      </table>
+          <pre><code>$ zburn list</code></pre>
 
-      <h3>Delete a saved identity</h3>
+          <table>
+            <thead>
+              <tr><th>Flag</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>--json</code></td><td>Output as JSON instead of formatted text</td></tr>
+            </tbody>
+          </table>
 
-      <pre><code>$ zburn forget &lt;id&gt;</code></pre>
+          <h3>Delete a saved identity</h3>
 
-      <p>Permanently removes a saved identity by its ID.</p>
+          <pre><code>$ zburn forget &lt;id&gt;</code></pre>
 
-      <h3>Print version</h3>
+          <p>Permanently removes a saved identity by its ID.</p>
 
-      <pre><code>$ zburn version</code></pre>
+          <h3>Print version</h3>
 
-      <h2>Data storage</h2>
+          <pre><code>$ zburn version</code></pre>
 
-      <p>Saved identities are encrypted at rest. zburn uses <strong>AES-256-GCM</strong> for encryption with a master key derived from your password via <strong>Argon2id</strong> key derivation.</p>
+        </div>
+      </div>
+    </div>
 
-      <p>Data is stored locally in:</p>
+    <div class="window">
+      <div class="window-title">data storage</div>
+      <div class="window-content">
+        <div class="doc-content">
 
-      <pre><code>~/.local/share/zburn/</code></pre>
+          <p>Saved identities are encrypted at rest. zburn uses <strong>AES-256-GCM</strong> for encryption with a master key derived from your password via <strong>Argon2id</strong> key derivation.</p>
 
-      <p>No data ever leaves your machine. There are no accounts, no servers, no sync. Your identities live on your disk, encrypted with a key only you know.</p>
+          <p>Data is stored locally in:</p>
 
-      <hr>
+          <pre><code>~/.local/share/zburn/</code></pre>
 
-      <p><a href="index.html">&larr; Back to zburn</a> &middot; <a href="https://zarlcorp.github.io">zarlcorp.github.io</a></p>
+          <p>No data ever leaves your machine. There are no accounts, no servers, no sync. Your identities live on your disk, encrypted with a key only you know.</p>
 
+        </div>
+      </div>
     </div>
 
     <footer class="footer">
+      <p><a href="index.html">&larr; back to zburn</a></p>
       <p>Open source. MIT licensed.</p>
     </footer>
 
   </div>
+
 </body>
 </html>
