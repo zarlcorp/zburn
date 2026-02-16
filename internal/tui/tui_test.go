@@ -524,11 +524,64 @@ func TestDetailViewShowsFields(t *testing.T) {
 	m := newDetailModel(testIdentity())
 	view := m.View()
 
-	checks := []string{"abc12345", "Jane Doe", "jane@zburn.id", "(555) 123-4567"}
+	checks := []string{"Jane Doe", "jane@zburn.id", "(555) 123-4567"}
 	for _, c := range checks {
 		if !strings.Contains(view, c) {
 			t.Errorf("detail view should contain %q", c)
 		}
+	}
+}
+
+func TestDetailViewNameInTitle(t *testing.T) {
+	m := newDetailModel(testIdentity())
+	view := m.View()
+
+	if !strings.Contains(view, "Jane Doe") {
+		t.Error("title should contain identity name")
+	}
+	if strings.Contains(view, "abc12345") {
+		t.Error("title should not contain UUID")
+	}
+}
+
+func TestDetailViewSectionBreaks(t *testing.T) {
+	m := newDetailModel(testIdentity())
+	view := m.View()
+
+	// section breaks add blank lines between contact/address/personal groups
+	// find the fields in order and verify blank lines exist between sections
+	lines := strings.Split(view, "\n")
+	var fieldLines []int
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		// look for field content lines (with label + value)
+		if strings.Contains(line, "street") || strings.Contains(line, "dob") {
+			fieldLines = append(fieldLines, i)
+		}
+	}
+
+	// verify there is at least one blank line before street (address section)
+	// and before dob (personal section) by checking the raw output
+	// The sectionBreaks map adds "\n" before indices 3 (street) and 5 (dob)
+	streetIdx := strings.Index(view, "street")
+	dobIdx := strings.Index(view, "dob")
+	if streetIdx < 0 || dobIdx < 0 {
+		t.Fatal("view should contain street and dob fields")
+	}
+
+	// check that there's a double newline before street section
+	beforeStreet := view[:streetIdx]
+	if !strings.Contains(beforeStreet, "\n\n") {
+		t.Error("should have section break before street (address section)")
+	}
+
+	// check that there's a double newline before dob section
+	betweenStreetAndDob := view[streetIdx:dobIdx]
+	if !strings.Contains(betweenStreetAndDob, "\n\n") {
+		t.Error("should have section break before dob (personal section)")
 	}
 }
 
