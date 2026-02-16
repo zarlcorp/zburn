@@ -15,6 +15,7 @@ const (
 	menuGenerate menuChoice = iota
 	menuEmail
 	menuBrowse
+	menuSettings
 	menuQuit
 )
 
@@ -22,6 +23,7 @@ var menuItems = []string{
 	"generate identity",
 	"generate email (quick)",
 	"browse saved identities",
+	"settings",
 	"quit",
 }
 
@@ -84,6 +86,8 @@ func (m menuModel) selectItem() tea.Cmd {
 		return func() tea.Msg { return quickEmailMsg{} }
 	case menuBrowse:
 		return func() tea.Msg { return navigateMsg{view: viewList} }
+	case menuSettings:
+		return func() tea.Msg { return navigateMsg{view: viewSettings} }
 	case menuQuit:
 		return tea.Quit
 	}

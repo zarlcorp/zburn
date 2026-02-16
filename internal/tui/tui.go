@@ -2,6 +2,7 @@
 package tui
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
@@ -24,17 +25,22 @@ const (
 	viewCredentialList
 	viewCredentialDetail
 	viewCredentialForm
+	viewSettings
+	viewSettingsNamecheap
+	viewSettingsGmail
+	viewSettingsTwilio
 )
 
 // Model is the root TUI model.
 type Model struct {
-	version    string
-	dataDir    string
-	gen        *identity.Generator
-	store      *zstore.Store
-	identities *zstore.Collection[identity.Identity]
+	version     string
+	dataDir     string
+	gen         *identity.Generator
+	store       *zstore.Store
+	identities  *zstore.Collection[identity.Identity]
 	credentials *zstore.Collection[credential.Credential]
-	firstRun   bool
+	configs     *zstore.Collection[configEnvelope]
+	firstRun    bool
 
 	active           viewID
 	password         passwordModel
@@ -45,6 +51,17 @@ type Model struct {
 	credentialList   credentialListModel
 	credentialDetail credentialDetailModel
 	credentialForm   credentialFormModel
+
+	// settings views
+	settings          settingsModel
+	settingsNamecheap namecheapModel
+	settingsGmail     gmailModel
+	settingsTwilio    twilioModel
+
+	// cached config state
+	ncConfig NamecheapSettings
+	gmConfig GmailSettings
+	twConfig TwilioSettings
 }
 
 // New creates the root TUI model.
@@ -108,6 +125,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case deleteCredentialMsg:
 		return m.handleDeleteCredential(msg.id)
+
+	case saveNamecheapMsg:
+		return m.handleSaveNamecheap(msg.settings)
+
+	case saveGmailMsg:
+		return m.handleSaveGmail(msg.settings)
+
+	case saveTwilioMsg:
+		return m.handleSaveTwilio(msg.settings)
+
+	case disconnectGmailMsg:
+		return m.handleDisconnectGmail()
 	}
 
 	return m.updateActive(msg)
@@ -131,6 +160,14 @@ func (m Model) View() string {
 		return m.credentialDetail.View()
 	case viewCredentialForm:
 		return m.credentialForm.View()
+	case viewSettings:
+		return m.settings.View()
+	case viewSettingsNamecheap:
+		return m.settingsNamecheap.View()
+	case viewSettingsGmail:
+		return m.settingsGmail.View()
+	case viewSettingsTwilio:
+		return m.settingsTwilio.View()
 	}
 	return ""
 }
@@ -155,6 +192,14 @@ func (m Model) updateActive(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.credentialDetail, cmd = m.credentialDetail.Update(msg)
 	case viewCredentialForm:
 		m.credentialForm, cmd = m.credentialForm.Update(msg)
+	case viewSettings:
+		m.settings, cmd = m.settings.Update(msg)
+	case viewSettingsNamecheap:
+		m.settingsNamecheap, cmd = m.settingsNamecheap.Update(msg)
+	case viewSettingsGmail:
+		m.settingsGmail, cmd = m.settingsGmail.Update(msg)
+	case viewSettingsTwilio:
+		m.settingsTwilio, cmd = m.settingsTwilio.Update(msg)
 	}
 
 	return m, cmd
@@ -189,9 +234,18 @@ func (m Model) openStore(password string) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	cfgCol, err := zstore.NewCollection[configEnvelope](s, "config")
+	if err != nil {
+		s.Close()
+		m.password, _ = m.password.Update(passwordErrMsg{err: err})
+		return m, nil
+	}
+
 	m.store = s
 	m.identities = idCol
 	m.credentials = credCol
+	m.configs = cfgCol
+	m.loadConfigs()
 	m.active = viewMenu
 	return m, nil
 }
@@ -219,6 +273,26 @@ func (m Model) navigate(view viewID) (tea.Model, tea.Cmd) {
 
 	case viewCredentialList:
 		return m.loadCredentialList(m.credentialList.identityID)
+
+	case viewSettings:
+		m.settings = newSettingsModel(m.ncConfig, m.gmConfig, m.twConfig)
+		m.active = viewSettings
+		return m, nil
+
+	case viewSettingsNamecheap:
+		m.settingsNamecheap = newNamecheapModel(m.ncConfig)
+		m.active = viewSettingsNamecheap
+		return m, nil
+
+	case viewSettingsGmail:
+		m.settingsGmail = newGmailModel(m.gmConfig)
+		m.active = viewSettingsGmail
+		return m, nil
+
+	case viewSettingsTwilio:
+		m.settingsTwilio = newTwilioModel(m.twConfig)
+		m.active = viewSettingsTwilio
+		return m, nil
 	}
 
 	return m, nil
@@ -388,6 +462,99 @@ func (m Model) handleDeleteCredential(id string) (tea.Model, tea.Cmd) {
 	}
 	return m, nil
 }
+
+// loadConfigs reads all provider configs from the store into cached fields.
+// Missing configs are silently ignored (zero value = unconfigured).
+func (m *Model) loadConfigs() {
+	m.ncConfig = loadConfig[NamecheapSettings](m.configs, "namecheap")
+	m.gmConfig = loadConfig[GmailSettings](m.configs, "gmail")
+	m.twConfig = loadConfig[TwilioSettings](m.configs, "twilio")
+}
+
+// loadConfig reads a typed config from the envelope collection.
+func loadConfig[T any](col *zstore.Collection[configEnvelope], key string) T {
+	var zero T
+	if col == nil {
+		return zero
+	}
+
+	env, err := col.Get(key)
+	if err != nil {
+		return zero
+	}
+
+	var v T
+	if err := json.Unmarshal(env.Data, &v); err != nil {
+		return zero
+	}
+
+	return v
+}
+
+// saveConfig persists a typed config into the envelope collection.
+func saveConfig[T any](col *zstore.Collection[configEnvelope], key string, v T) error {
+	data, err := json.Marshal(v)
+	if err != nil {
+		return fmt.Errorf("marshal config: %w", err)
+	}
+
+	return col.Put(key, configEnvelope{Data: data})
+}
+
+func (m Model) handleSaveNamecheap(s NamecheapSettings) (tea.Model, tea.Cmd) {
+	if err := saveConfig(m.configs, "namecheap", s); err != nil {
+		m.settingsNamecheap.flash = "save: " + err.Error()
+		return m, clearFlashAfter()
+	}
+
+	m.ncConfig = s
+	m.settingsNamecheap.flash = "saved"
+	return m, clearFlashAfter()
+}
+
+func (m Model) handleSaveGmail(s GmailSettings) (tea.Model, tea.Cmd) {
+	if err := saveConfig(m.configs, "gmail", s); err != nil {
+		m.settingsGmail.flash = "save: " + err.Error()
+		return m, clearFlashAfter()
+	}
+
+	m.gmConfig = s
+	m.settingsGmail.current = s
+	m.settingsGmail.flash = "saved"
+	return m, clearFlashAfter()
+}
+
+func (m Model) handleSaveTwilio(s TwilioSettings) (tea.Model, tea.Cmd) {
+	if err := saveConfig(m.configs, "twilio", s); err != nil {
+		m.settingsTwilio.flash = "save: " + err.Error()
+		return m, clearFlashAfter()
+	}
+
+	m.twConfig = s
+	m.settingsTwilio.flash = "saved"
+	return m, clearFlashAfter()
+}
+
+func (m Model) handleDisconnectGmail() (tea.Model, tea.Cmd) {
+	m.gmConfig.Token = nil
+	if err := saveConfig(m.configs, "gmail", m.gmConfig); err != nil {
+		m.settingsGmail.flash = "disconnect: " + err.Error()
+		return m, clearFlashAfter()
+	}
+
+	m.settingsGmail.current = m.gmConfig
+	m.settingsGmail.flash = "disconnected"
+	return m, clearFlashAfter()
+}
+
+// NamecheapConfigured reports whether Namecheap is configured.
+func (m Model) NamecheapConfigured() bool { return m.ncConfig.Configured() }
+
+// GmailConfigured reports whether Gmail is configured.
+func (m Model) GmailConfigured() bool { return m.gmConfig.Configured() }
+
+// TwilioConfigured reports whether Twilio is configured.
+func (m Model) TwilioConfigured() bool { return m.twConfig.Configured() }
 
 // Close cleans up resources. Call after the program exits.
 func (m Model) Close() {
