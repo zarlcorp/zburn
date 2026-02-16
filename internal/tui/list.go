@@ -13,7 +13,6 @@ import (
 type listModel struct {
 	identities []identity.Identity
 	cursor     int
-	confirming bool // delete confirmation
 	flash      string
 }
 
@@ -56,12 +55,10 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 	case loadIdentitiesMsg:
 		m.identities = msg.identities
 		m.cursor = 0
-		m.confirming = false
 		return m, nil
 
 	case identityDeletedMsg:
 		m.flash = "deleted"
-		m.confirming = false
 		// reload will be handled by root
 		return m, nil
 
@@ -74,11 +71,6 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 }
 
 func (m listModel) handleKey(msg tea.KeyMsg) (listModel, tea.Cmd) {
-	// handle delete confirmation first
-	if m.confirming {
-		return m.handleConfirm(msg)
-	}
-
 	if key.Matches(msg, zstyle.KeyQuit) {
 		return m, tea.Quit
 	}
@@ -111,23 +103,11 @@ func (m listModel) handleKey(msg tea.KeyMsg) (listModel, tea.Cmd) {
 	}
 
 	if msg.String() == "d" {
-		m.confirming = true
-		return m, nil
+		id := m.identities[m.cursor]
+		return m, func() tea.Msg { return burnStartMsg{identity: id} }
 	}
 
 	return m, nil
-}
-
-func (m listModel) handleConfirm(msg tea.KeyMsg) (listModel, tea.Cmd) {
-	switch msg.String() {
-	case "y":
-		id := m.identities[m.cursor].ID
-		m.confirming = false
-		return m, func() tea.Msg { return deleteIdentityMsg{id: id} }
-	default:
-		m.confirming = false
-		return m, nil
-	}
 }
 
 func (m listModel) View() string {
@@ -161,16 +141,14 @@ func (m listModel) View() string {
 
 	s += "\n"
 
-	// always reserve a line for flash/confirm to prevent layout shift
-	if m.confirming {
-		s += "  " + zstyle.StatusWarn.Render("delete? y/n") + "\n"
-	} else if m.flash != "" {
+	// always reserve a line for flash to prevent layout shift
+	if m.flash != "" {
 		s += "  " + zstyle.StatusOK.Render(m.flash) + "\n"
 	} else {
 		s += "\n"
 	}
 
-	help := "j/k navigate  enter view  d delete  esc back  q quit"
+	help := "j/k navigate  enter view  d burn  esc back  q quit"
 	s += "  " + zstyle.MutedText.Render(help) + "\n"
 	return s
 }

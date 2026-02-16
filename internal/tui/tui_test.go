@@ -6,6 +6,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/zarlcorp/zburn/internal/burn"
 	"github.com/zarlcorp/zburn/internal/identity"
 )
 
@@ -454,42 +455,22 @@ func TestListSelectIdentity(t *testing.T) {
 	}
 }
 
-func TestListDeleteConfirmation(t *testing.T) {
+func TestListBurnEmitsBurnStartMsg(t *testing.T) {
 	ids := []identity.Identity{testIdentity()}
 	m := newListModel(ids)
 
-	// press d to start delete
-	m, _ = m.Update(keyMsg('d'))
-	if !m.confirming {
-		t.Error("should be in confirming state")
-	}
-	if !strings.Contains(m.View(), "delete? y/n") {
-		t.Error("should show delete confirmation")
-	}
-
-	// press n to cancel
-	m, _ = m.Update(keyMsg('n'))
-	if m.confirming {
-		t.Error("should cancel confirmation on n")
-	}
-}
-
-func TestListDeleteConfirmed(t *testing.T) {
-	ids := []identity.Identity{testIdentity()}
-	m := newListModel(ids)
-
-	m, _ = m.Update(keyMsg('d'))
-	_, cmd := m.Update(keyMsg('y'))
+	// press d to trigger burn
+	_, cmd := m.Update(keyMsg('d'))
 	if cmd == nil {
-		t.Fatal("y should produce delete command")
+		t.Fatal("d should produce command")
 	}
 	msg := cmd()
-	del, ok := msg.(deleteIdentityMsg)
+	bs, ok := msg.(burnStartMsg)
 	if !ok {
-		t.Fatal("should emit deleteIdentityMsg")
+		t.Fatal("should emit burnStartMsg")
 	}
-	if del.id != "abc12345" {
-		t.Errorf("delete ID = %q, want %q", del.id, "abc12345")
+	if bs.identity.ID != "abc12345" {
+		t.Errorf("burn identity ID = %q, want %q", bs.identity.ID, "abc12345")
 	}
 }
 
@@ -574,36 +555,20 @@ func TestDetailBackToList(t *testing.T) {
 	}
 }
 
-func TestDetailDeleteConfirmation(t *testing.T) {
+func TestDetailBurnEmitsBurnStartMsg(t *testing.T) {
 	m := newDetailModel(testIdentity())
 
-	m, _ = m.Update(keyMsg('d'))
-	if !m.confirm {
-		t.Error("should be in confirm state")
-	}
-
-	// cancel
-	m, _ = m.Update(keyMsg('n'))
-	if m.confirm {
-		t.Error("should cancel confirmation")
-	}
-}
-
-func TestDetailDeleteConfirmed(t *testing.T) {
-	m := newDetailModel(testIdentity())
-
-	m, _ = m.Update(keyMsg('d'))
-	_, cmd := m.Update(keyMsg('y'))
+	_, cmd := m.Update(keyMsg('d'))
 	if cmd == nil {
-		t.Fatal("y should produce delete command")
+		t.Fatal("d should produce command")
 	}
 	msg := cmd()
-	del, ok := msg.(deleteIdentityMsg)
+	bs, ok := msg.(burnStartMsg)
 	if !ok {
-		t.Fatal("should emit deleteIdentityMsg")
+		t.Fatal("should emit burnStartMsg")
 	}
-	if del.id != "abc12345" {
-		t.Errorf("delete ID = %q, want %q", del.id, "abc12345")
+	if bs.identity.ID != "abc12345" {
+		t.Errorf("burn identity ID = %q, want %q", bs.identity.ID, "abc12345")
 	}
 }
 
@@ -815,6 +780,205 @@ func TestIdentityFields(t *testing.T) {
 	}
 	if fields[2].label != "email" || fields[2].value != id.Email {
 		t.Errorf("field[2] = %v, want email=%s", fields[2], id.Email)
+	}
+}
+
+// burn view tests
+
+func TestBurnConfirmViewShowsPlan(t *testing.T) {
+	id := testIdentity()
+	plan := []string{
+		"delete all credentials (3)",
+		"remove email forwarding for jane@zburn.id",
+	}
+	m := newBurnModel(id, plan)
+	view := m.View()
+
+	if !strings.Contains(view, "burn Jane Doe?") {
+		t.Error("should show burn confirmation with name")
+	}
+	if !strings.Contains(view, "credentials (3)") {
+		t.Error("should show credential count")
+	}
+	if !strings.Contains(view, "jane@zburn.id") {
+		t.Error("should show email forwarding")
+	}
+	if !strings.Contains(view, "cannot be undone") {
+		t.Error("should show warning")
+	}
+}
+
+func TestBurnConfirmCancel(t *testing.T) {
+	id := testIdentity()
+	m := newBurnModel(id, []string{"delete all credentials (0)"})
+
+	// any key other than y cancels
+	_, cmd := m.Update(keyMsg('n'))
+	if cmd == nil {
+		t.Fatal("should produce command on cancel")
+	}
+	msg := cmd()
+	nav, ok := msg.(navigateMsg)
+	if !ok {
+		t.Fatal("should emit navigateMsg on cancel")
+	}
+	if nav.view != viewDetail {
+		t.Errorf("view = %d, want viewDetail", nav.view)
+	}
+}
+
+func TestBurnConfirmAccept(t *testing.T) {
+	id := testIdentity()
+	m := newBurnModel(id, []string{"delete all credentials (0)"})
+
+	_, cmd := m.Update(keyMsg('y'))
+	if cmd == nil {
+		t.Fatal("y should produce command")
+	}
+	msg := cmd()
+	bi, ok := msg.(burnIdentityMsg)
+	if !ok {
+		t.Fatal("should emit burnIdentityMsg")
+	}
+	if bi.identity.ID != id.ID {
+		t.Errorf("burn identity ID = %q, want %q", bi.identity.ID, id.ID)
+	}
+}
+
+func TestBurnConfirmQuit(t *testing.T) {
+	id := testIdentity()
+	m := newBurnModel(id, nil)
+
+	_, cmd := m.Update(keyMsg('q'))
+	if cmd == nil {
+		t.Fatal("q should quit")
+	}
+}
+
+func TestBurnDoneAnyKeyNavigates(t *testing.T) {
+	id := testIdentity()
+	m := newBurnModel(id, nil)
+	m.phase = burnDone
+	m.result = burn.Result{
+		Name:  "Jane Doe",
+		Steps: []burn.StepStatus{{Description: "deleted identity"}},
+	}
+
+	_, cmd := m.Update(keyMsg('x'))
+	if cmd == nil {
+		t.Fatal("any key in done phase should produce command")
+	}
+	msg := cmd()
+	nav, ok := msg.(navigateMsg)
+	if !ok {
+		t.Fatal("should emit navigateMsg")
+	}
+	if nav.view != viewList {
+		t.Errorf("view = %d, want viewList", nav.view)
+	}
+}
+
+func TestBurnDoneViewShowsResult(t *testing.T) {
+	id := testIdentity()
+	m := newBurnModel(id, nil)
+	m.phase = burnDone
+	m.result = burn.Result{
+		Name:             "Jane Doe",
+		CredentialsCount: 3,
+		Steps: []burn.StepStatus{
+			{Description: "deleted 3 credentials"},
+			{Description: "deleted identity"},
+		},
+	}
+
+	view := m.View()
+	if !strings.Contains(view, "burned Jane Doe") {
+		t.Error("should show burned name")
+	}
+	if !strings.Contains(view, "deleted 3 credentials") {
+		t.Error("should show credential deletion")
+	}
+}
+
+func TestBurnResultMsg(t *testing.T) {
+	id := testIdentity()
+	m := newBurnModel(id, nil)
+	m.phase = burnRunning
+
+	result := burn.Result{
+		Name:  "Jane Doe",
+		Steps: []burn.StepStatus{{Description: "deleted identity"}},
+	}
+
+	m, _ = m.Update(burnResultMsg{result: result})
+
+	if m.phase != burnDone {
+		t.Errorf("phase = %d, want burnDone", m.phase)
+	}
+	if m.result.Name != "Jane Doe" {
+		t.Errorf("result name = %q, want %q", m.result.Name, "Jane Doe")
+	}
+}
+
+// splitEmail tests
+
+func TestSplitEmail(t *testing.T) {
+	tests := []struct {
+		email   string
+		mailbox string
+		domain  string
+	}{
+		{"jane@zburn.id", "jane", "zburn.id"},
+		{"swift.wolf@example.com", "swift.wolf", "example.com"},
+		{"noat", "", ""},
+		{"", "", ""},
+		{"@domain.com", "", "domain.com"},
+	}
+
+	for _, tt := range tests {
+		m, d := splitEmail(tt.email)
+		if m != tt.mailbox || d != tt.domain {
+			t.Errorf("splitEmail(%q) = (%q, %q), want (%q, %q)",
+				tt.email, m, d, tt.mailbox, tt.domain)
+		}
+	}
+}
+
+// root model burn integration tests
+
+func TestRootBurnStartFromDetail(t *testing.T) {
+	m := New("1.0", t.TempDir(), identity.New(), false)
+	m.active = viewDetail
+	id := testIdentity()
+	m.detail = newDetailModel(id)
+
+	// detail emits burnStartMsg
+	result, _ := m.Update(burnStartMsg{identity: id})
+	rm := result.(Model)
+
+	if rm.active != viewBurn {
+		t.Errorf("active = %d, want viewBurn", rm.active)
+	}
+	if rm.burn.phase != burnConfirm {
+		t.Errorf("burn phase = %d, want burnConfirm", rm.burn.phase)
+	}
+	if rm.burn.identity.ID != id.ID {
+		t.Errorf("burn identity ID = %q, want %q", rm.burn.identity.ID, id.ID)
+	}
+}
+
+func TestRootBurnStartFromList(t *testing.T) {
+	m := New("1.0", t.TempDir(), identity.New(), false)
+	m.active = viewList
+	ids := []identity.Identity{testIdentity()}
+	m.list = newListModel(ids)
+
+	// list emits burnStartMsg
+	result, _ := m.Update(burnStartMsg{identity: ids[0]})
+	rm := result.(Model)
+
+	if rm.active != viewBurn {
+		t.Errorf("active = %d, want viewBurn", rm.active)
 	}
 }
 

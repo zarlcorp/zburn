@@ -16,13 +16,17 @@ type viewCredentialsMsg struct {
 	identityID string
 }
 
+// burnStartMsg tells the root model to show the burn confirmation for an identity.
+type burnStartMsg struct {
+	identity identity.Identity
+}
+
 // detailModel displays all fields of a saved identity.
 type detailModel struct {
-	identity       identity.Identity
-	fields         []identityField
-	cursor         int
-	flash          string
-	confirm        bool
+	identity        identity.Identity
+	fields          []identityField
+	cursor          int
+	flash           string
 	credentialCount int
 }
 
@@ -54,10 +58,6 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 }
 
 func (m detailModel) handleKey(msg tea.KeyMsg) (detailModel, tea.Cmd) {
-	if m.confirm {
-		return m.handleConfirm(msg)
-	}
-
 	if key.Matches(msg, zstyle.KeyQuit) {
 		return m, tea.Quit
 	}
@@ -105,23 +105,11 @@ func (m detailModel) handleKey(msg tea.KeyMsg) (detailModel, tea.Cmd) {
 		return m, func() tea.Msg { return viewCredentialsMsg{identityID: id} }
 
 	case "d":
-		m.confirm = true
-		return m, nil
+		id := m.identity
+		return m, func() tea.Msg { return burnStartMsg{identity: id} }
 	}
 
 	return m, nil
-}
-
-func (m detailModel) handleConfirm(msg tea.KeyMsg) (detailModel, tea.Cmd) {
-	switch msg.String() {
-	case "y":
-		id := m.identity.ID
-		m.confirm = false
-		return m, func() tea.Msg { return deleteIdentityMsg{id: id} }
-	default:
-		m.confirm = false
-		return m, nil
-	}
 }
 
 func (m detailModel) allFieldsText() string {
@@ -154,16 +142,14 @@ func (m detailModel) View() string {
 
 	s += "\n"
 
-	// always reserve a line for flash/confirm to prevent layout shift
-	if m.confirm {
-		s += "  " + zstyle.StatusWarn.Render("delete? y/n") + "\n"
-	} else if m.flash != "" {
+	// always reserve a line for flash to prevent layout shift
+	if m.flash != "" {
 		s += "  " + zstyle.StatusOK.Render(m.flash) + "\n"
 	} else {
 		s += "\n"
 	}
 
-	help := "enter copy field  c copy all  w credentials  d delete  esc back  q quit"
+	help := "enter copy field  c copy all  w credentials  d burn  esc back  q quit"
 	s += "  " + zstyle.MutedText.Render(help) + "\n"
 	return s
 }

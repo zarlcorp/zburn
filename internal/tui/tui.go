@@ -2,6 +2,7 @@
 package tui
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -10,6 +11,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/zarlcorp/core/pkg/zfilesystem"
 	"github.com/zarlcorp/core/pkg/zstore"
+	"github.com/zarlcorp/zburn/internal/burn"
 	"github.com/zarlcorp/zburn/internal/credential"
 	"github.com/zarlcorp/zburn/internal/identity"
 )
@@ -29,7 +31,19 @@ const (
 	viewSettingsNamecheap
 	viewSettingsGmail
 	viewSettingsTwilio
+	viewBurn
 )
+
+// ExternalServices holds optional integrations for burn cascade.
+type ExternalServices struct {
+	Forwarder burn.EmailForwarder
+	Releaser  burn.PhoneReleaser
+	// EmailDomain is the domain used for email forwarding (e.g. "zburn.id").
+	// Empty means no email forwarding is configured.
+	EmailDomain string
+	// PhoneForIdentity returns provisioned phone config for an identity, or nil.
+	PhoneForIdentity func(identityID string) *burn.PhoneConfig
+}
 
 // Model is the root TUI model.
 type Model struct {
@@ -41,6 +55,7 @@ type Model struct {
 	credentials *zstore.Collection[credential.Credential]
 	configs     *zstore.Collection[configEnvelope]
 	firstRun    bool
+	external    ExternalServices
 
 	active           viewID
 	password         passwordModel
@@ -51,6 +66,7 @@ type Model struct {
 	credentialList   credentialListModel
 	credentialDetail credentialDetailModel
 	credentialForm   credentialFormModel
+	burn             burnModel
 
 	// settings views
 	settings          settingsModel
@@ -75,6 +91,11 @@ func New(version, dataDir string, gen *identity.Generator, firstRun bool) Model 
 		password: newPasswordModel(firstRun),
 		menu:     newMenuModel(version),
 	}
+}
+
+// SetExternalServices configures optional integrations for burn cascade.
+func (m *Model) SetExternalServices(ext ExternalServices) {
+	m.external = ext
 }
 
 func (m Model) Init() tea.Cmd {
@@ -137,6 +158,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case disconnectGmailMsg:
 		return m.handleDisconnectGmail()
+
+	case burnStartMsg:
+		return m.startBurn(msg.identity)
+
+	case burnIdentityMsg:
+		return m.executeBurn(msg.identity)
+
+	case burnResultMsg:
+		m.burn, _ = m.burn.Update(msg)
+		return m, clearFlashAfter3s()
 	}
 
 	return m.updateActive(msg)
@@ -168,6 +199,8 @@ func (m Model) View() string {
 		return m.settingsGmail.View()
 	case viewSettingsTwilio:
 		return m.settingsTwilio.View()
+	case viewBurn:
+		return m.burn.View()
 	}
 	return ""
 }
@@ -200,6 +233,8 @@ func (m Model) updateActive(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.settingsGmail, cmd = m.settingsGmail.Update(msg)
 	case viewSettingsTwilio:
 		m.settingsTwilio, cmd = m.settingsTwilio.Update(msg)
+	case viewBurn:
+		m.burn, cmd = m.burn.Update(msg)
 	}
 
 	return m, cmd
@@ -292,6 +327,11 @@ func (m Model) navigate(view viewID) (tea.Model, tea.Cmd) {
 	case viewSettingsTwilio:
 		m.settingsTwilio = newTwilioModel(m.twConfig)
 		m.active = viewSettingsTwilio
+		return m, nil
+
+	case viewBurn:
+		// burn is set by detail view "d" key -> burnStartMsg
+		m.active = viewBurn
 		return m, nil
 	}
 
@@ -555,6 +595,86 @@ func (m Model) GmailConfigured() bool { return m.gmConfig.Configured() }
 
 // TwilioConfigured reports whether Twilio is configured.
 func (m Model) TwilioConfigured() bool { return m.twConfig.Configured() }
+
+func (m Model) startBurn(id identity.Identity) (tea.Model, tea.Cmd) {
+	req := m.buildBurnRequest(id)
+	plan := burn.Plan(req)
+	m.burn = newBurnModel(id, plan)
+	m.active = viewBurn
+	return m, nil
+}
+
+func (m Model) executeBurn(id identity.Identity) (tea.Model, tea.Cmd) {
+	req := m.buildBurnRequest(id)
+	return m, func() tea.Msg {
+		result := burn.Execute(context.Background(), req)
+		return burnResultMsg{result: result}
+	}
+}
+
+func (m Model) buildBurnRequest(id identity.Identity) burn.Request {
+	req := burn.Request{
+		Identity:    id,
+		Credentials: credentialStoreOrEmpty(m.credentials),
+		Identities:  identityStoreOrEmpty(m.identities),
+	}
+
+	// email forwarding — configured when we have a forwarder and a domain
+	if m.external.Forwarder != nil && m.external.EmailDomain != "" {
+		mailbox, domain := splitEmail(id.Email)
+		if mailbox != "" && domain == m.external.EmailDomain {
+			req.Email = &burn.EmailConfig{Domain: domain, Mailbox: mailbox}
+			req.Forwarder = m.external.Forwarder
+		}
+	}
+
+	// phone release — configured when we have a releaser and a lookup func
+	if m.external.Releaser != nil && m.external.PhoneForIdentity != nil {
+		if phone := m.external.PhoneForIdentity(id.ID); phone != nil {
+			req.Phone = phone
+			req.Releaser = m.external.Releaser
+		}
+	}
+
+	return req
+}
+
+// splitEmail splits an email address into mailbox and domain.
+func splitEmail(email string) (mailbox, domain string) {
+	for i := len(email) - 1; i >= 0; i-- {
+		if email[i] == '@' {
+			return email[:i], email[i+1:]
+		}
+	}
+	return "", ""
+}
+
+// credentialStoreOrEmpty returns the collection as a burn.CredentialStore,
+// or a no-op store if the collection is nil (store not yet opened).
+func credentialStoreOrEmpty(col *zstore.Collection[credential.Credential]) burn.CredentialStore {
+	if col == nil {
+		return emptyCredentialStore{}
+	}
+	return col
+}
+
+// identityStoreOrEmpty returns the collection as a burn.IdentityStore,
+// or a no-op store if the collection is nil (store not yet opened).
+func identityStoreOrEmpty(col *zstore.Collection[identity.Identity]) burn.IdentityStore {
+	if col == nil {
+		return emptyIdentityStore{}
+	}
+	return col
+}
+
+type emptyCredentialStore struct{}
+
+func (emptyCredentialStore) List() ([]credential.Credential, error) { return nil, nil }
+func (emptyCredentialStore) Delete(string) error                    { return nil }
+
+type emptyIdentityStore struct{}
+
+func (emptyIdentityStore) Delete(string) error { return nil }
 
 // Close cleans up resources. Call after the program exits.
 func (m Model) Close() {
