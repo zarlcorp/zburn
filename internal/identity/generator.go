@@ -91,6 +91,11 @@ func (g *Generator) Password(length int) string {
 	return zcrypto.GeneratePassword(length)
 }
 
+// RandomHandle generates a random handle like "swiftfox4821".
+func RandomHandle() string {
+	return pick(adjectives) + pick(nouns) + fmt.Sprintf("%04d", randIntn(10000))
+}
+
 // Name generates a random first/last name pair.
 func (g *Generator) Name() (first, last string) {
 	return pick(firstNames), pick(lastNames)

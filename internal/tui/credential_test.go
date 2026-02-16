@@ -38,7 +38,7 @@ func testCredentialNoTOTP() credential.Credential {
 // credential list tests
 
 func TestCredentialListViewEmpty(t *testing.T) {
-	m := newCredentialListModel("abc12345", nil)
+	m := newCredentialListModel(testIdentity(), nil)
 	view := m.View()
 
 	if !strings.Contains(view, "no credentials") {
@@ -51,7 +51,7 @@ func TestCredentialListViewEmpty(t *testing.T) {
 
 func TestCredentialListViewShowsCredentials(t *testing.T) {
 	creds := []credential.Credential{testCredential(), testCredentialNoTOTP()}
-	m := newCredentialListModel("abc12345", creds)
+	m := newCredentialListModel(testIdentity(), creds)
 	view := m.View()
 
 	if !strings.Contains(view, "credentials (2)") {
@@ -67,7 +67,7 @@ func TestCredentialListViewShowsCredentials(t *testing.T) {
 
 func TestCredentialListSortsByLabel(t *testing.T) {
 	creds := []credential.Credential{testCredentialNoTOTP(), testCredential()} // Netflix, GitHub
-	m := newCredentialListModel("abc12345", creds)
+	m := newCredentialListModel(testIdentity(), creds)
 
 	// after sort: GitHub, Netflix
 	if m.credentials[0].Label != "GitHub" {
@@ -80,7 +80,7 @@ func TestCredentialListSortsByLabel(t *testing.T) {
 
 func TestCredentialListNavigation(t *testing.T) {
 	creds := []credential.Credential{testCredential(), testCredentialNoTOTP()}
-	m := newCredentialListModel("abc12345", creds)
+	m := newCredentialListModel(testIdentity(), creds)
 
 	if m.cursor != 0 {
 		t.Fatal("cursor should start at 0")
@@ -105,7 +105,7 @@ func TestCredentialListNavigation(t *testing.T) {
 
 func TestCredentialListCursorClampMax(t *testing.T) {
 	creds := []credential.Credential{testCredential(), testCredentialNoTOTP()}
-	m := newCredentialListModel("abc12345", creds)
+	m := newCredentialListModel(testIdentity(), creds)
 
 	for range 5 {
 		m, _ = m.Update(keyMsg('j'))
@@ -117,7 +117,7 @@ func TestCredentialListCursorClampMax(t *testing.T) {
 
 func TestCredentialListEnterViewsCredential(t *testing.T) {
 	creds := []credential.Credential{testCredential()}
-	m := newCredentialListModel("abc12345", creds)
+	m := newCredentialListModel(testIdentity(), creds)
 
 	_, cmd := m.Update(enterKey())
 	if cmd == nil {
@@ -134,7 +134,7 @@ func TestCredentialListEnterViewsCredential(t *testing.T) {
 }
 
 func TestCredentialListEnterEmptyNoop(t *testing.T) {
-	m := newCredentialListModel("abc12345", nil)
+	m := newCredentialListModel(testIdentity(), nil)
 	_, cmd := m.Update(enterKey())
 	if cmd != nil {
 		t.Error("enter on empty list should be noop")
@@ -142,7 +142,7 @@ func TestCredentialListEnterEmptyNoop(t *testing.T) {
 }
 
 func TestCredentialListAdd(t *testing.T) {
-	m := newCredentialListModel("abc12345", nil)
+	m := newCredentialListModel(testIdentity(), nil)
 
 	_, cmd := m.Update(keyMsg('a'))
 	if cmd == nil {
@@ -153,14 +153,14 @@ func TestCredentialListAdd(t *testing.T) {
 	if !ok {
 		t.Fatalf("should emit addCredentialMsg, got %T", msg)
 	}
-	if add.identityID != "abc12345" {
-		t.Errorf("identityID = %q, want %q", add.identityID, "abc12345")
+	if add.identity.ID != "abc12345" {
+		t.Errorf("identity ID = %q, want %q", add.identity.ID, "abc12345")
 	}
 }
 
 func TestCredentialListDeleteConfirmation(t *testing.T) {
 	creds := []credential.Credential{testCredential()}
-	m := newCredentialListModel("abc12345", creds)
+	m := newCredentialListModel(testIdentity(), creds)
 
 	m, _ = m.Update(keyMsg('d'))
 	if !m.confirm {
@@ -182,7 +182,7 @@ func TestCredentialListDeleteConfirmation(t *testing.T) {
 
 func TestCredentialListDeleteConfirmed(t *testing.T) {
 	creds := []credential.Credential{testCredential()}
-	m := newCredentialListModel("abc12345", creds)
+	m := newCredentialListModel(testIdentity(), creds)
 
 	m, _ = m.Update(keyMsg('d'))
 	_, cmd := m.Update(keyMsg('y'))
@@ -200,7 +200,7 @@ func TestCredentialListDeleteConfirmed(t *testing.T) {
 }
 
 func TestCredentialListDeleteEmptyNoop(t *testing.T) {
-	m := newCredentialListModel("abc12345", nil)
+	m := newCredentialListModel(testIdentity(), nil)
 	m, _ = m.Update(keyMsg('d'))
 	if m.confirm {
 		t.Error("should not enter confirm on empty list")
@@ -208,7 +208,7 @@ func TestCredentialListDeleteEmptyNoop(t *testing.T) {
 }
 
 func TestCredentialListBackToDetail(t *testing.T) {
-	m := newCredentialListModel("abc12345", nil)
+	m := newCredentialListModel(testIdentity(), nil)
 	_, cmd := m.Update(escKey())
 	if cmd == nil {
 		t.Fatal("esc should produce command")
@@ -224,7 +224,7 @@ func TestCredentialListBackToDetail(t *testing.T) {
 }
 
 func TestCredentialListQuit(t *testing.T) {
-	m := newCredentialListModel("abc12345", nil)
+	m := newCredentialListModel(testIdentity(), nil)
 	_, cmd := m.Update(keyMsg('q'))
 	if cmd == nil {
 		t.Fatal("q should quit")
@@ -232,7 +232,7 @@ func TestCredentialListQuit(t *testing.T) {
 }
 
 func TestCredentialListFlashClears(t *testing.T) {
-	m := newCredentialListModel("abc12345", nil)
+	m := newCredentialListModel(testIdentity(), nil)
 	m.flash = "something"
 	m, _ = m.Update(flashMsg{})
 	if m.flash != "" {
@@ -481,7 +481,7 @@ func TestCredentialDetailNotesHiddenWhenEmpty(t *testing.T) {
 // credential form tests
 
 func TestCredentialFormAddView(t *testing.T) {
-	m := newCredentialFormModel("abc12345", nil)
+	m := newCredentialFormModel(testIdentity(), nil)
 	view := m.View()
 
 	if !strings.Contains(view, "add credential") {
@@ -496,7 +496,7 @@ func TestCredentialFormAddView(t *testing.T) {
 
 func TestCredentialFormEditView(t *testing.T) {
 	c := testCredential()
-	m := newCredentialFormModel("abc12345", &c)
+	m := newCredentialFormModel(testIdentity(), &c)
 	view := m.View()
 
 	if !strings.Contains(view, "edit credential") {
@@ -509,7 +509,7 @@ func TestCredentialFormEditView(t *testing.T) {
 
 func TestCredentialFormEditPreloads(t *testing.T) {
 	c := testCredential()
-	m := newCredentialFormModel("abc12345", &c)
+	m := newCredentialFormModel(testIdentity(), &c)
 
 	if m.inputs[fieldLabel].Value() != "GitHub" {
 		t.Errorf("label = %q, want %q", m.inputs[fieldLabel].Value(), "GitHub")
@@ -532,7 +532,7 @@ func TestCredentialFormEditPreloads(t *testing.T) {
 }
 
 func TestCredentialFormTabCycles(t *testing.T) {
-	m := newCredentialFormModel("abc12345", nil)
+	m := newCredentialFormModel(testIdentity(), nil)
 
 	if m.focus != 0 {
 		t.Fatalf("focus should start at 0")
@@ -557,7 +557,7 @@ func TestCredentialFormTabCycles(t *testing.T) {
 }
 
 func TestCredentialFormSubmitRequiresLabel(t *testing.T) {
-	m := newCredentialFormModel("abc12345", nil)
+	m := newCredentialFormModel(testIdentity(), nil)
 	// label is empty
 	m, _ = m.Update(enterKey())
 	if m.flash != "label is required" {
@@ -566,7 +566,7 @@ func TestCredentialFormSubmitRequiresLabel(t *testing.T) {
 }
 
 func TestCredentialFormSubmitInvalidTOTP(t *testing.T) {
-	m := newCredentialFormModel("abc12345", nil)
+	m := newCredentialFormModel(testIdentity(), nil)
 	m.inputs[fieldLabel].SetValue("Test")
 	m.inputs[fieldTOTPSecret].SetValue("!!!invalid!!!")
 
@@ -577,7 +577,7 @@ func TestCredentialFormSubmitInvalidTOTP(t *testing.T) {
 }
 
 func TestCredentialFormSubmitValidAdd(t *testing.T) {
-	m := newCredentialFormModel("abc12345", nil)
+	m := newCredentialFormModel(testIdentity(), nil)
 	m.inputs[fieldLabel].SetValue("GitHub")
 	m.inputs[fieldURL].SetValue("https://github.com")
 	m.inputs[fieldUsername].SetValue("janedoe")
@@ -608,7 +608,7 @@ func TestCredentialFormSubmitValidAdd(t *testing.T) {
 
 func TestCredentialFormSubmitValidEdit(t *testing.T) {
 	c := testCredential()
-	m := newCredentialFormModel("abc12345", &c)
+	m := newCredentialFormModel(testIdentity(), &c)
 	m.inputs[fieldLabel].SetValue("GitHub Updated")
 
 	_, cmd := m.Update(enterKey())
@@ -635,7 +635,7 @@ func TestCredentialFormSubmitValidEdit(t *testing.T) {
 }
 
 func TestCredentialFormSubmitValidBase32TOTP(t *testing.T) {
-	m := newCredentialFormModel("abc12345", nil)
+	m := newCredentialFormModel(testIdentity(), nil)
 	m.inputs[fieldLabel].SetValue("Test")
 	m.inputs[fieldTOTPSecret].SetValue("JBSWY3DPEHPK3PXP")
 
@@ -654,7 +654,7 @@ func TestCredentialFormSubmitValidBase32TOTP(t *testing.T) {
 }
 
 func TestCredentialFormBackFromAdd(t *testing.T) {
-	m := newCredentialFormModel("abc12345", nil)
+	m := newCredentialFormModel(testIdentity(), nil)
 	_, cmd := m.Update(escKey())
 	if cmd == nil {
 		t.Fatal("esc should produce command")
@@ -671,7 +671,7 @@ func TestCredentialFormBackFromAdd(t *testing.T) {
 
 func TestCredentialFormBackFromEdit(t *testing.T) {
 	c := testCredential()
-	m := newCredentialFormModel("abc12345", &c)
+	m := newCredentialFormModel(testIdentity(), &c)
 	_, cmd := m.Update(escKey())
 	if cmd == nil {
 		t.Fatal("esc should produce command")
@@ -687,7 +687,7 @@ func TestCredentialFormBackFromEdit(t *testing.T) {
 }
 
 func TestCredentialFormCtrlCQuits(t *testing.T) {
-	m := newCredentialFormModel("abc12345", nil)
+	m := newCredentialFormModel(testIdentity(), nil)
 	_, cmd := m.Update(specialKey(tea.KeyCtrlC))
 	if cmd == nil {
 		t.Fatal("ctrl+c should quit")
@@ -695,11 +695,244 @@ func TestCredentialFormCtrlCQuits(t *testing.T) {
 }
 
 func TestCredentialFormFlashClears(t *testing.T) {
-	m := newCredentialFormModel("abc12345", nil)
+	m := newCredentialFormModel(testIdentity(), nil)
 	m.flash = "something"
 	m, _ = m.Update(flashMsg{})
 	if m.flash != "" {
 		t.Errorf("flash should be empty, got %q", m.flash)
+	}
+}
+
+// credential form dual-mode tests
+
+func TestCredentialFormIdentityHeader(t *testing.T) {
+	m := newCredentialFormModel(testIdentity(), nil)
+	view := m.View()
+
+	if !strings.Contains(view, "Jane Doe") {
+		t.Error("should show identity name in header")
+	}
+	if !strings.Contains(view, "jane@zburn.id") {
+		t.Error("should show identity email in header")
+	}
+}
+
+func TestCredentialFormIdentityHeaderHiddenOnEdit(t *testing.T) {
+	c := testCredential()
+	m := newCredentialFormModel(testIdentity(), &c)
+	view := m.View()
+
+	// the identity header is only for add mode
+	if strings.Contains(view, "Jane Doe") && strings.Contains(view, "jane@zburn.id") {
+		// check that it's not rendered as the identity header line
+		// in edit mode, the header should not appear
+		lines := strings.Split(view, "\n")
+		for _, line := range lines {
+			if strings.Contains(line, "Jane Doe") && strings.Contains(line, "jane@zburn.id") {
+				t.Error("edit mode should not show identity header")
+			}
+		}
+	}
+}
+
+func TestCredentialFormUsernameCycle(t *testing.T) {
+	m := newCredentialFormModel(testIdentity(), nil)
+
+	// default: identity's email
+	if m.inputs[fieldUsername].Value() != "jane@zburn.id" {
+		t.Errorf("default username = %q, want %q", m.inputs[fieldUsername].Value(), "jane@zburn.id")
+	}
+
+	// focus on username field
+	for m.focus != fieldUsername {
+		m, _ = m.Update(tabKey())
+	}
+
+	// cycle through options: jane.doe, jdoe, janedoe, random handle, back to email
+	m, _ = m.Update(spaceKey())
+	if m.inputs[fieldUsername].Value() != "jane.doe" {
+		t.Errorf("after 1st space = %q, want %q", m.inputs[fieldUsername].Value(), "jane.doe")
+	}
+
+	m, _ = m.Update(spaceKey())
+	if m.inputs[fieldUsername].Value() != "jdoe" {
+		t.Errorf("after 2nd space = %q, want %q", m.inputs[fieldUsername].Value(), "jdoe")
+	}
+
+	m, _ = m.Update(spaceKey())
+	if m.inputs[fieldUsername].Value() != "janedoe" {
+		t.Errorf("after 3rd space = %q, want %q", m.inputs[fieldUsername].Value(), "janedoe")
+	}
+
+	// 4th space: random handle (adjective + noun + 4 digits)
+	m, _ = m.Update(spaceKey())
+	handle := m.inputs[fieldUsername].Value()
+	if len(handle) < 5 {
+		t.Errorf("random handle too short: %q", handle)
+	}
+	// should not match any of the static options
+	if handle == "jane@zburn.id" || handle == "jane.doe" || handle == "jdoe" || handle == "janedoe" {
+		t.Errorf("handle should be random, got %q", handle)
+	}
+
+	// 5th space: wraps back to email
+	m, _ = m.Update(spaceKey())
+	if m.inputs[fieldUsername].Value() != "jane@zburn.id" {
+		t.Errorf("after wrap = %q, want %q", m.inputs[fieldUsername].Value(), "jane@zburn.id")
+	}
+}
+
+func TestCredentialFormPasswordGenerated(t *testing.T) {
+	m := newCredentialFormModel(testIdentity(), nil)
+
+	// password should be pre-filled with a generated password
+	pw := m.inputs[fieldPassword].Value()
+	if pw == "" {
+		t.Error("password should be pre-filled on new form")
+	}
+	if len(pw) != 20 {
+		t.Errorf("generated password length = %d, want 20", len(pw))
+	}
+}
+
+func TestCredentialFormPasswordCycle(t *testing.T) {
+	m := newCredentialFormModel(testIdentity(), nil)
+	pw1 := m.inputs[fieldPassword].Value()
+
+	// focus on password field
+	for m.focus != fieldPassword {
+		m, _ = m.Update(tabKey())
+	}
+
+	// space regenerates password
+	m, _ = m.Update(spaceKey())
+	pw2 := m.inputs[fieldPassword].Value()
+	if pw2 == "" {
+		t.Error("password should be regenerated")
+	}
+	if len(pw2) != 20 {
+		t.Errorf("regenerated password length = %d, want 20", len(pw2))
+	}
+	// extremely unlikely to be the same
+	if pw1 == pw2 {
+		t.Error("regenerated password should differ from original")
+	}
+}
+
+func TestCredentialFormEditModeNoGeneration(t *testing.T) {
+	c := testCredential()
+	m := newCredentialFormModel(testIdentity(), &c)
+
+	// username should be the existing value, not generated
+	if m.inputs[fieldUsername].Value() != "janedoe" {
+		t.Errorf("username = %q, want %q", m.inputs[fieldUsername].Value(), "janedoe")
+	}
+	// password should be the existing value
+	if m.inputs[fieldPassword].Value() != "s3cret!Pass" {
+		t.Errorf("password = %q, want %q", m.inputs[fieldPassword].Value(), "s3cret!Pass")
+	}
+
+	// focus on username and press space -- should type a space, not cycle
+	for m.focus != fieldUsername {
+		m, _ = m.Update(tabKey())
+	}
+	// in edit mode, space should be handled by the text input (typing a space)
+	m, _ = m.Update(spaceKey())
+	// the value should now have a space appended
+	if !strings.Contains(m.inputs[fieldUsername].Value(), " ") {
+		t.Error("space in edit mode should type a literal space")
+	}
+}
+
+func TestCredentialFormUsernameEditMode(t *testing.T) {
+	m := newCredentialFormModel(testIdentity(), nil)
+
+	// focus on username
+	for m.focus != fieldUsername {
+		m, _ = m.Update(tabKey())
+	}
+
+	// verify we start in cycle mode
+	if m.usernameMode != modeCycle {
+		t.Error("should start in cycle mode")
+	}
+
+	// type a character to switch to edit mode
+	m, _ = m.Update(keyMsg('x'))
+	if m.usernameMode != modeEdit {
+		t.Error("typing should switch to edit mode")
+	}
+	// the input should contain the typed character
+	if !strings.Contains(m.inputs[fieldUsername].Value(), "x") {
+		t.Errorf("input should contain typed character, got %q", m.inputs[fieldUsername].Value())
+	}
+}
+
+func TestCredentialFormUsernameEscCycle(t *testing.T) {
+	m := newCredentialFormModel(testIdentity(), nil)
+
+	// focus on username
+	for m.focus != fieldUsername {
+		m, _ = m.Update(tabKey())
+	}
+
+	// enter edit mode
+	m, _ = m.Update(keyMsg('x'))
+	if m.usernameMode != modeEdit {
+		t.Fatal("should be in edit mode")
+	}
+
+	// esc returns to cycle mode with the generated value
+	m, _ = m.Update(escKey())
+	if m.usernameMode != modeCycle {
+		t.Error("esc should return to cycle mode")
+	}
+	if m.inputs[fieldUsername].Value() != "jane@zburn.id" {
+		t.Errorf("should restore generated value, got %q", m.inputs[fieldUsername].Value())
+	}
+}
+
+func TestCredentialFormPasswordEscCycle(t *testing.T) {
+	m := newCredentialFormModel(testIdentity(), nil)
+	generatedPW := m.generatedPW
+
+	// focus on password
+	for m.focus != fieldPassword {
+		m, _ = m.Update(tabKey())
+	}
+
+	// enter edit mode
+	m, _ = m.Update(keyMsg('x'))
+	if m.passwordMode != modeEdit {
+		t.Fatal("should be in edit mode")
+	}
+
+	// esc returns to cycle mode with generated password
+	m, _ = m.Update(escKey())
+	if m.passwordMode != modeCycle {
+		t.Error("esc should return to cycle mode")
+	}
+	if m.inputs[fieldPassword].Value() != generatedPW {
+		t.Errorf("should restore generated password, got %q", m.inputs[fieldPassword].Value())
+	}
+}
+
+func TestCredentialFormGeneratedIndicator(t *testing.T) {
+	m := newCredentialFormModel(testIdentity(), nil)
+	view := m.View()
+
+	if !strings.Contains(view, "[generated]") {
+		t.Error("should show [generated] indicator for cycle mode fields")
+	}
+}
+
+func TestCredentialFormGeneratedIndicatorHiddenOnEdit(t *testing.T) {
+	c := testCredential()
+	m := newCredentialFormModel(testIdentity(), &c)
+	view := m.View()
+
+	if strings.Contains(view, "[generated]") {
+		t.Error("should not show [generated] indicator in edit mode")
 	}
 }
 
@@ -779,8 +1012,8 @@ func TestDetailWNavigatesToCredentials(t *testing.T) {
 	if !ok {
 		t.Fatalf("should emit viewCredentialsMsg, got %T", msg)
 	}
-	if view.identityID != "abc12345" {
-		t.Errorf("identityID = %q, want %q", view.identityID, "abc12345")
+	if view.identity.ID != "abc12345" {
+		t.Errorf("identity ID = %q, want %q", view.identity.ID, "abc12345")
 	}
 }
 
@@ -815,13 +1048,14 @@ func TestRootAddCredentialMsg(t *testing.T) {
 	m := New("1.0", t.TempDir(), identity.New(), false)
 	m.active = viewCredentialList
 
-	result, _ := m.Update(addCredentialMsg{identityID: "abc12345"})
+	id := testIdentity()
+	result, _ := m.Update(addCredentialMsg{identity: id})
 	rm := result.(Model)
 	if rm.active != viewCredentialForm {
 		t.Errorf("active = %d, want viewCredentialForm", rm.active)
 	}
-	if rm.credentialForm.identityID != "abc12345" {
-		t.Errorf("identityID = %q, want %q", rm.credentialForm.identityID, "abc12345")
+	if rm.credentialForm.identity.ID != "abc12345" {
+		t.Errorf("identity ID = %q, want %q", rm.credentialForm.identity.ID, "abc12345")
 	}
 	if rm.credentialForm.editing {
 		t.Error("should not be in editing mode for add")
@@ -831,6 +1065,7 @@ func TestRootAddCredentialMsg(t *testing.T) {
 func TestRootEditCredentialMsg(t *testing.T) {
 	m := New("1.0", t.TempDir(), identity.New(), false)
 	m.active = viewCredentialDetail
+	m.detail = newDetailModel(testIdentity())
 
 	c := testCredential()
 	result, _ := m.Update(editCredentialMsg{credential: c})
@@ -849,7 +1084,7 @@ func TestRootEditCredentialMsg(t *testing.T) {
 func TestRootQuitFromCredentialList(t *testing.T) {
 	m := New("1.0", t.TempDir(), identity.New(), false)
 	m.active = viewCredentialList
-	m.credentialList = newCredentialListModel("abc12345", nil)
+	m.credentialList = newCredentialListModel(testIdentity(), nil)
 
 	_, cmd := m.Update(keyMsg('q'))
 	if cmd == nil {
@@ -876,4 +1111,8 @@ func tabKey() tea.KeyMsg {
 
 func shiftTabKey() tea.KeyMsg {
 	return tea.KeyMsg{Type: tea.KeyShiftTab}
+}
+
+func spaceKey() tea.KeyMsg {
+	return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{' '}}
 }
