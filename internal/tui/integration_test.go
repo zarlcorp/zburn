@@ -561,7 +561,7 @@ func TestIntegrationBurnWithExternalServices(t *testing.T) {
 
 	// generate an identity with an email on the configured domain
 	gen := identity.New()
-	id := gen.Generate()
+	id := gen.Generate("")
 	m = saveIdentity(t, m, id)
 
 	now := time.Now()
@@ -620,7 +620,7 @@ func TestIntegrationBurnWithFailingExternalService(t *testing.T) {
 	m := setupModel(t)
 
 	gen := identity.New()
-	id := gen.Generate()
+	id := gen.Generate("")
 	m = saveIdentity(t, m, id)
 
 	fwd := &fakeForwarder{err: fmt.Errorf("network timeout")}
@@ -903,7 +903,7 @@ func TestIntegrationSettingsAffectBurnPlan(t *testing.T) {
 	m := setupModel(t)
 
 	gen := identity.New()
-	id := gen.Generate()
+	id := gen.Generate("")
 	m = saveIdentity(t, m, id)
 
 	// burn plan without external services — only credentials step

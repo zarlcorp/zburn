@@ -293,7 +293,7 @@ func (m Model) navigate(view viewID) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case viewGenerate:
-		id := m.gen.Generate()
+		id := m.gen.Generate("")
 		m.generate = newGenerateModel(id)
 		m.active = viewGenerate
 		return m, nil
@@ -364,7 +364,8 @@ func (m Model) loadList() (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleQuickEmail() (tea.Model, tea.Cmd) {
-	email := m.gen.Email()
+	first, last := m.gen.Name()
+	email := m.gen.Email(first, last, "")
 	if err := copyToClipboard(email); err != nil {
 		// fall through to menu with no notification
 		return m, nil

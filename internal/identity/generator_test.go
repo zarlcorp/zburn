@@ -10,7 +10,7 @@ import (
 
 func TestGenerate(t *testing.T) {
 	g := New()
-	id := g.Generate()
+	id := g.Generate("")
 
 	tests := []struct {
 		name  string
@@ -21,7 +21,7 @@ func TestGenerate(t *testing.T) {
 		{"FirstName non-empty", func() bool { return id.FirstName != "" }},
 		{"LastName non-empty", func() bool { return id.LastName != "" }},
 		{"Email non-empty", func() bool { return id.Email != "" }},
-		{"Email has domain", func() bool { return strings.HasSuffix(id.Email, "@"+emailDomain) }},
+		{"Email has @ sign", func() bool { return strings.Contains(id.Email, "@") }},
 		{"Phone non-empty", func() bool { return id.Phone != "" }},
 		{"Phone has 555", func() bool { return strings.HasPrefix(id.Phone, "(555) ") }},
 		{"Street non-empty", func() bool { return id.Street != "" }},
@@ -41,25 +41,139 @@ func TestGenerate(t *testing.T) {
 	}
 }
 
-func TestEmail(t *testing.T) {
+func TestGenerateDefaultDomain(t *testing.T) {
 	g := New()
-	re := regexp.MustCompile(`^[a-z]+[a-z]+\d{4}@` + regexp.QuoteMeta(emailDomain) + `$`)
+	id := g.Generate("")
+	if !strings.HasSuffix(id.Email, "@"+defaultDomain) {
+		t.Errorf("empty domain should use default, got %q", id.Email)
+	}
+}
 
-	for range 20 {
-		email := g.Email()
-		if !re.MatchString(email) {
-			t.Errorf("email %q does not match pattern", email)
+func TestGenerateCustomDomain(t *testing.T) {
+	g := New()
+	id := g.Generate("custom.example.com")
+	if !strings.HasSuffix(id.Email, "@custom.example.com") {
+		t.Errorf("expected custom domain, got %q", id.Email)
+	}
+}
+
+func TestEmailPatterns(t *testing.T) {
+	g := New()
+
+	// each pattern regex describes what the local part looks like
+	patterns := []struct {
+		name string
+		re   *regexp.Regexp
+	}{
+		{"firstname.lastname", regexp.MustCompile(`^[a-z]+\.[a-z]+@`)},
+		{"firstinitiallastname", regexp.MustCompile(`^[a-z][a-z]+@`)},
+		{"firstnamelastname", regexp.MustCompile(`^[a-z]+[a-z]+@`)},
+		{"firstname.lastname+digits", regexp.MustCompile(`^[a-z]+\.[a-z]+\d{2}@`)},
+		{"firstinitiallastname+digits", regexp.MustCompile(`^[a-z][a-z]+\d{2}@`)},
+		{"firstinitial.lastname", regexp.MustCompile(`^[a-z]\.[a-z]+@`)},
+		{"lastname.firstname", regexp.MustCompile(`^[a-z]+\.[a-z]+@`)},
+		{"adjective+noun+4digits", regexp.MustCompile(`^[a-z]+[a-z]+\d{4}@`)},
+	}
+
+	// generate many emails and track which patterns we see
+	seen := make(map[int]bool)
+	for range 500 {
+		email := g.Email("John", "Doe", "test.com")
+
+		// must have domain
+		if !strings.HasSuffix(email, "@test.com") {
+			t.Fatalf("wrong domain in %q", email)
+		}
+
+		local := strings.TrimSuffix(email, "@test.com")
+
+		// classify which pattern it matched
+		matched := false
+		for i, p := range patterns {
+			if p.re.MatchString(local + "@") {
+				seen[i] = true
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			// all emails should be lowercase alphanumeric with optional dots
+			if !regexp.MustCompile(`^[a-z0-9.]+$`).MatchString(local) {
+				t.Errorf("email local part %q contains unexpected characters", local)
+			}
+		}
+	}
+
+	// with 8 patterns and 500 iterations, we should see most patterns
+	// (probability of missing one is ~(7/8)^500 ≈ 0)
+	if len(seen) < 4 {
+		t.Errorf("expected variety in email patterns, only saw %d distinct patterns", len(seen))
+	}
+}
+
+func TestEmailNameIncorporation(t *testing.T) {
+	g := New()
+
+	// generate many emails and verify name appears in name-based patterns
+	nameFound := 0
+	total := 200
+	for range total {
+		email := g.Email("Alice", "Wonder", "example.com")
+		local := strings.Split(email, "@")[0]
+		if strings.Contains(local, "alice") || strings.Contains(local, "wonder") {
+			nameFound++
+		}
+	}
+
+	// 7 of 8 patterns include the name, so ~87.5% should contain name parts
+	if nameFound < total/2 {
+		t.Errorf("expected most emails to contain name parts, got %d/%d", nameFound, total)
+	}
+}
+
+func TestEmailDefaultDomain(t *testing.T) {
+	g := New()
+	email := g.Email("Test", "User", "")
+	if !strings.HasSuffix(email, "@"+defaultDomain) {
+		t.Errorf("empty domain should fall back to default, got %q", email)
+	}
+}
+
+func TestEmailCustomDomain(t *testing.T) {
+	g := New()
+	email := g.Email("Test", "User", "my.domain.org")
+	if !strings.HasSuffix(email, "@my.domain.org") {
+		t.Errorf("expected custom domain, got %q", email)
+	}
+}
+
+func TestEmailAllLowercase(t *testing.T) {
+	g := New()
+	for range 100 {
+		email := g.Email("JOHN", "DOE", "EXAMPLE.COM")
+		local := strings.Split(email, "@")[0]
+		if local != strings.ToLower(local) {
+			t.Errorf("local part should be lowercase, got %q", local)
 		}
 	}
 }
 
 func TestEmailRandomness(t *testing.T) {
 	g := New()
-	a := g.Email()
-	b := g.Email()
-	// with ~50 adjectives * ~50 nouns * 10000 digits, collision is extremely unlikely
-	if a == b {
-		t.Errorf("consecutive emails should differ: got %q twice", a)
+	a := g.Email("John", "Doe", "")
+	b := g.Email("John", "Doe", "")
+	// even with same name, different pattern or digits should yield different results
+	// try a few times to avoid flakes
+	different := false
+	for range 10 {
+		c := g.Email("John", "Doe", "")
+		if a != c {
+			different = true
+			break
+		}
+	}
+	if !different && a == b {
+		t.Errorf("emails should vary: got %q repeatedly", a)
 	}
 }
 
@@ -165,7 +279,7 @@ func TestPhone(t *testing.T) {
 	g := New()
 	re := regexp.MustCompile(`^\(555\) \d{3}-\d{4}$`)
 	for range 20 {
-		id := g.Generate()
+		id := g.Generate("")
 		if !re.MatchString(id.Phone) {
 			t.Errorf("phone %q does not match (555) XXX-XXXX pattern", id.Phone)
 		}
@@ -179,7 +293,7 @@ func TestDOBRange(t *testing.T) {
 	maxDOB := now.AddDate(-21, 0, 1)
 
 	for range 100 {
-		id := g.Generate()
+		id := g.Generate("")
 		if id.DOB.Before(minDOB) || id.DOB.After(maxDOB) {
 			age := now.Sub(id.DOB).Hours() / 24 / 365.25
 			t.Errorf("DOB %s out of range (age ~%.1f)", id.DOB.Format("2006-01-02"), age)
@@ -192,7 +306,7 @@ func TestStreet(t *testing.T) {
 	// pattern: number, space, word(s), space, suffix
 	re := regexp.MustCompile(`^\d+ [A-Za-z]+ [A-Za-z]+$`)
 	for range 20 {
-		id := g.Generate()
+		id := g.Generate("")
 		if !re.MatchString(id.Street) {
 			t.Errorf("street %q does not match expected pattern", id.Street)
 		}
@@ -203,7 +317,7 @@ func TestZip(t *testing.T) {
 	g := New()
 	re := regexp.MustCompile(`^\d{5}$`)
 	for range 20 {
-		id := g.Generate()
+		id := g.Generate("")
 		if !re.MatchString(id.Zip) {
 			t.Errorf("zip %q does not match 5-digit pattern", id.Zip)
 		}
@@ -212,11 +326,30 @@ func TestZip(t *testing.T) {
 
 func TestGenerateRandomness(t *testing.T) {
 	g := New()
-	a := g.Generate()
-	b := g.Generate()
+	a := g.Generate("")
+	b := g.Generate("")
 
 	// IDs should always differ (8 hex chars = 32 bits of randomness)
 	if a.ID == b.ID {
 		t.Errorf("consecutive IDs should differ: got %q twice", a.ID)
+	}
+}
+
+func TestGenerateEmailUsesName(t *testing.T) {
+	g := New()
+	// generate several identities and verify the email relates to the name
+	nameInEmail := 0
+	for range 100 {
+		id := g.Generate("")
+		first := strings.ToLower(id.FirstName)
+		last := strings.ToLower(id.LastName)
+		local := strings.Split(id.Email, "@")[0]
+		if strings.Contains(local, first) || strings.Contains(local, last) {
+			nameInEmail++
+		}
+	}
+	// 7/8 patterns use the name
+	if nameInEmail < 50 {
+		t.Errorf("expected most emails to contain identity name, got %d/100", nameInEmail)
 	}
 }
