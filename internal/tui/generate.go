@@ -59,9 +59,10 @@ func renderAvatar() string {
 	}
 	var buf bytes.Buffer
 	opts := &kitty.Options{
-		Action: kitty.TransmitAndPut,
-		Format: kitty.PNG,
-		Chunk:  true,
+		Action:       kitty.TransmitAndPut,
+		Transmission: kitty.Direct,
+		Format:       kitty.PNG,
+		Chunk:        true,
 	}
 	if err := kitty.EncodeGraphics(&buf, img, opts); err != nil {
 		return ""

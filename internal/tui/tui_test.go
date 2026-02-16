@@ -858,6 +858,13 @@ func TestAvatarDataNotEmpty(t *testing.T) {
 	}
 }
 
+func TestRenderAvatarProducesPayload(t *testing.T) {
+	s := renderAvatar()
+	if len(s) < 100 {
+		t.Errorf("renderAvatar() returned %d bytes, want > 100 (got %q)", len(s), s)
+	}
+}
+
 // burn view tests
 
 func TestBurnConfirmViewShowsPlan(t *testing.T) {
