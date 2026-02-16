@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strings"
 	"syscall"
 
 	"github.com/zarlcorp/core/pkg/zfilesystem"
+	"github.com/zarlcorp/core/pkg/zstore"
 	"github.com/zarlcorp/zburn/internal/identity"
-	"github.com/zarlcorp/zburn/internal/store"
 	"golang.org/x/term"
 )
 
@@ -60,10 +61,11 @@ func IsFirstRun(dir string) bool {
 	return err != nil
 }
 
-// OpenStore prompts for a password and opens the store.
-func OpenStore(dir string) (*store.Store, error) {
+// OpenStore prompts for a password and opens the store, returning both the
+// store and an identities collection.
+func OpenStore(dir string) (*zstore.Store, *zstore.Collection[identity.Identity], error) {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return nil, fmt.Errorf("create data dir: %w", err)
+		return nil, nil, fmt.Errorf("create data dir: %w", err)
 	}
 
 	var pass string
@@ -74,15 +76,22 @@ func OpenStore(dir string) (*store.Store, error) {
 		pass, err = ReadPassword("master password: ", os.Stderr)
 	}
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	fsys := zfilesystem.NewOSFileSystem(dir)
-	s, err := store.Open(fsys, pass)
+	s, err := zstore.Open(fsys, []byte(pass))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return s, nil
+
+	col, err := zstore.NewCollection[identity.Identity](s, "identities")
+	if err != nil {
+		s.Close()
+		return nil, nil, err
+	}
+
+	return s, col, nil
 }
 
 // CmdEmail generates and prints a random email.
@@ -107,14 +116,14 @@ func CmdIdentity(args []string) {
 
 	if save {
 		dir := DataDir()
-		s, err := OpenStore(dir)
+		s, col, err := OpenStore(dir)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "zburn: %v\n", err)
 			os.Exit(1)
 		}
 		defer s.Close()
 
-		if err := s.Save(id); err != nil {
+		if err := col.Put(id.ID, id); err != nil {
 			fmt.Fprintf(os.Stderr, "zburn: save: %v\n", err)
 			os.Exit(1)
 		}
@@ -127,18 +136,22 @@ func CmdList(args []string) {
 	asJSON := hasFlag(args, "--json")
 
 	dir := DataDir()
-	s, err := OpenStore(dir)
+	s, col, err := OpenStore(dir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "zburn: %v\n", err)
 		os.Exit(1)
 	}
 	defer s.Close()
 
-	ids, err := s.List()
+	ids, err := col.List()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "zburn: list: %v\n", err)
 		os.Exit(1)
 	}
+
+	sort.Slice(ids, func(i, j int) bool {
+		return ids[i].CreatedAt.After(ids[j].CreatedAt)
+	})
 
 	if len(ids) == 0 {
 		fmt.Println("no saved identities")
@@ -163,14 +176,14 @@ func CmdList(args []string) {
 // CmdForget deletes a saved identity by ID.
 func CmdForget(id string) {
 	dir := DataDir()
-	s, err := OpenStore(dir)
+	s, col, err := OpenStore(dir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "zburn: %v\n", err)
 		os.Exit(1)
 	}
 	defer s.Close()
 
-	if err := s.Delete(id); err != nil {
+	if err := col.Delete(id); err != nil {
 		fmt.Fprintf(os.Stderr, "zburn: forget: %v\n", err)
 		os.Exit(1)
 	}

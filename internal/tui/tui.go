@@ -4,11 +4,12 @@ package tui
 import (
 	"fmt"
 	"os"
+	"sort"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/zarlcorp/core/pkg/zfilesystem"
+	"github.com/zarlcorp/core/pkg/zstore"
 	"github.com/zarlcorp/zburn/internal/identity"
-	"github.com/zarlcorp/zburn/internal/store"
 )
 
 type viewID int
@@ -23,11 +24,12 @@ const (
 
 // Model is the root TUI model.
 type Model struct {
-	version  string
-	dataDir  string
-	gen      *identity.Generator
-	store    *store.Store
-	firstRun bool
+	version    string
+	dataDir    string
+	gen        *identity.Generator
+	store      *zstore.Store
+	identities *zstore.Collection[identity.Identity]
+	firstRun   bool
 
 	active   viewID
 	password passwordModel
@@ -124,13 +126,21 @@ func (m Model) openStore(password string) (tea.Model, tea.Cmd) {
 	}
 
 	fsys := zfilesystem.NewOSFileSystem(m.dataDir)
-	s, err := store.Open(fsys, password)
+	s, err := zstore.Open(fsys, []byte(password))
 	if err != nil {
 		m.password, _ = m.password.Update(passwordErrMsg{err: err})
 		return m, nil
 	}
 
+	col, err := zstore.NewCollection[identity.Identity](s, "identities")
+	if err != nil {
+		s.Close()
+		m.password, _ = m.password.Update(passwordErrMsg{err: err})
+		return m, nil
+	}
+
 	m.store = s
+	m.identities = col
 	m.active = viewMenu
 	return m, nil
 }
@@ -161,7 +171,7 @@ func (m Model) navigate(view viewID) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) loadList() (tea.Model, tea.Cmd) {
-	ids, err := m.store.List()
+	ids, err := m.identities.List()
 	if err != nil {
 		// show empty list with error flash
 		m.list = newListModel(nil)
@@ -169,6 +179,11 @@ func (m Model) loadList() (tea.Model, tea.Cmd) {
 		m.active = viewList
 		return m, clearFlashAfter()
 	}
+
+	// sort by CreatedAt descending — zstore.List does not guarantee order
+	sort.Slice(ids, func(i, j int) bool {
+		return ids[i].CreatedAt.After(ids[j].CreatedAt)
+	})
 
 	m.list = newListModel(ids)
 	m.active = viewList
@@ -190,7 +205,7 @@ func (m Model) handleQuickEmail() (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleSave(id identity.Identity) (tea.Model, tea.Cmd) {
-	if err := m.store.Save(id); err != nil {
+	if err := m.identities.Put(id.ID, id); err != nil {
 		m.generate.flash = "save: " + err.Error()
 		return m, clearFlashAfter()
 	}
@@ -200,7 +215,7 @@ func (m Model) handleSave(id identity.Identity) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleDelete(id string) (tea.Model, tea.Cmd) {
-	if err := m.store.Delete(id); err != nil {
+	if err := m.identities.Delete(id); err != nil {
 		if m.active == viewDetail {
 			m.detail.flash = "delete: " + err.Error()
 			return m, clearFlashAfter()
