@@ -282,7 +282,7 @@ func TestGenerateViewShowsFields(t *testing.T) {
 	m := newGenerateModel(id, "")
 	view := m.View()
 
-	checks := []string{id.FirstName, id.Email, id.Phone, id.City}
+	checks := []string{id.Email, id.FirstName, id.Phone, "Portland, OR 97201"}
 	for _, c := range checks {
 		if !strings.Contains(view, c) {
 			t.Errorf("view should contain %q", c)
@@ -756,16 +756,31 @@ func TestIdentityFields(t *testing.T) {
 	id := testIdentity()
 	fields := identityFields(id)
 
-	if len(fields) != 9 {
-		t.Fatalf("fields length = %d, want 9", len(fields))
+	if len(fields) != 6 {
+		t.Fatalf("fields length = %d, want 6", len(fields))
 	}
 
-	// spot check
-	if fields[0].label != "id" || fields[0].value != id.ID {
-		t.Errorf("field[0] = %v, want id=%s", fields[0], id.ID)
+	// email is first
+	if fields[0].label != "email" || fields[0].value != id.Email {
+		t.Errorf("field[0] = %v, want email=%s", fields[0], id.Email)
 	}
-	if fields[2].label != "email" || fields[2].value != id.Email {
-		t.Errorf("field[2] = %v, want email=%s", fields[2], id.Email)
+
+	// no id field
+	for _, f := range fields {
+		if f.label == "id" {
+			t.Error("fields should not contain id")
+		}
+	}
+
+	// address combines city, state, zip
+	if fields[4].label != "address" || fields[4].value != "Portland, OR 97201" {
+		t.Errorf("field[4] = %v, want address=Portland, OR 97201", fields[4])
+	}
+}
+
+func TestAvatarDataNotEmpty(t *testing.T) {
+	if len(avatarData) == 0 {
+		t.Error("avatarData should not be empty")
 	}
 }
 
