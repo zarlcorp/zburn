@@ -14,6 +14,7 @@ import (
 	"github.com/zarlcorp/core/pkg/zcrypto"
 	"github.com/zarlcorp/core/pkg/zstyle"
 	"github.com/zarlcorp/zburn/internal/credential"
+	"github.com/zarlcorp/zburn/internal/identity"
 )
 
 const (
@@ -35,14 +36,30 @@ var fieldLabels = [fieldCount]string{
 	"notes",
 }
 
+// fieldMode tracks whether a dual-mode field is in cycle or edit mode.
+type fieldMode int
+
+const (
+	modeCycle fieldMode = iota
+	modeEdit
+)
+
 // credentialFormModel handles add/edit for a credential.
 type credentialFormModel struct {
-	inputs     [fieldCount]textinput.Model
-	focus      int
-	editing    bool // true = edit existing, false = add new
-	existing   credential.Credential
-	identityID string
-	flash      string
+	inputs   [fieldCount]textinput.Model
+	focus    int
+	editing  bool // true = edit existing, false = add new
+	existing credential.Credential
+	identity identity.Identity
+	flash    string
+
+	// dual-mode state (only active when !editing)
+	usernameMode    fieldMode
+	usernameOptions []string
+	usernameIdx     int
+	generatedUser   string // current generated username value (for esc restore)
+	passwordMode    fieldMode
+	generatedPW     string
 }
 
 // saveCredentialMsg requests saving a credential.
@@ -50,7 +67,7 @@ type saveCredentialMsg struct {
 	credential credential.Credential
 }
 
-func newCredentialFormModel(identityID string, existing *credential.Credential) credentialFormModel {
+func newCredentialFormModel(id identity.Identity, existing *credential.Credential) credentialFormModel {
 	var inputs [fieldCount]textinput.Model
 	for i := range fieldCount {
 		ti := textinput.New()
@@ -60,13 +77,13 @@ func newCredentialFormModel(identityID string, existing *credential.Credential) 
 		inputs[i] = ti
 	}
 
-	// password field masking
+	// password field masking (default for edit mode)
 	inputs[fieldPassword].EchoMode = textinput.EchoPassword
 	inputs[fieldPassword].EchoCharacter = '*'
 
 	m := credentialFormModel{
-		inputs:     inputs,
-		identityID: identityID,
+		inputs:   inputs,
+		identity: id,
 	}
 
 	if existing != nil {
@@ -78,10 +95,41 @@ func newCredentialFormModel(identityID string, existing *credential.Credential) 
 		m.inputs[fieldPassword].SetValue(existing.Password)
 		m.inputs[fieldTOTPSecret].SetValue(existing.TOTPSecret)
 		m.inputs[fieldNotes].SetValue(existing.Notes)
+	} else {
+		// new credential: set up dual-mode fields
+		m.usernameOptions = buildUsernameOptions(id)
+		m.usernameIdx = 0
+		m.usernameMode = modeCycle
+		m.generatedUser = m.usernameOptions[0]
+		m.inputs[fieldUsername].SetValue(m.generatedUser)
+
+		m.generatedPW = zcrypto.GeneratePassword(20)
+		m.passwordMode = modeCycle
+		m.inputs[fieldPassword].SetValue(m.generatedPW)
+		// show password in cycle mode
+		m.inputs[fieldPassword].EchoMode = textinput.EchoNormal
 	}
 
 	m.inputs[m.focus].Focus()
 	return m
+}
+
+// buildUsernameOptions generates the cycle options for the username field.
+func buildUsernameOptions(id identity.Identity) []string {
+	first := strings.ToLower(id.FirstName)
+	last := strings.ToLower(id.LastName)
+	initial := ""
+	if len(first) > 0 {
+		initial = string(first[0])
+	}
+
+	return []string{
+		id.Email,
+		first + "." + last,
+		initial + last,
+		first + last,
+		// random handle is generated fresh each time via cycling
+	}
 }
 
 func (m credentialFormModel) Init() tea.Cmd {
@@ -106,12 +154,9 @@ func (m credentialFormModel) handleKey(msg tea.KeyMsg) (credentialFormModel, tea
 		return m, tea.Quit
 	}
 
+	// esc behavior depends on dual-mode state
 	if key.Matches(msg, zstyle.KeyBack) {
-		if m.editing {
-			c := m.existing
-			return m, func() tea.Msg { return viewCredentialMsg{credential: c} }
-		}
-		return m, func() tea.Msg { return navigateMsg{view: viewCredentialList} }
+		return m.handleEsc()
 	}
 
 	switch msg.String() {
@@ -128,18 +173,88 @@ func (m credentialFormModel) handleKey(msg tea.KeyMsg) (credentialFormModel, tea
 		return m, textinput.Blink
 	}
 
-	if msg.String() == "ctrl+g" && m.focus == fieldPassword {
-		pw := zcrypto.GeneratePassword(20)
-		m.inputs[fieldPassword].SetValue(pw)
-		m.flash = "password generated"
-		return m, clearFlashAfter()
-	}
-
 	if key.Matches(msg, zstyle.KeyEnter) {
 		return m.submit()
 	}
 
+	// dual-mode space handling (only for new credentials, not editing)
+	if !m.editing && msg.String() == " " {
+		if m.focus == fieldUsername && m.usernameMode == modeCycle {
+			return m.cycleUsername(), nil
+		}
+		if m.focus == fieldPassword && m.passwordMode == modeCycle {
+			return m.cyclePassword(), nil
+		}
+	}
+
+	// dual-mode: typing a printable character in cycle mode switches to edit mode
+	if !m.editing && len(msg.Runes) > 0 {
+		if m.focus == fieldUsername && m.usernameMode == modeCycle {
+			m.usernameMode = modeEdit
+			m.inputs[fieldUsername].SetValue("")
+			// fall through to updateInput to type the character
+		}
+		if m.focus == fieldPassword && m.passwordMode == modeCycle {
+			m.passwordMode = modeEdit
+			m.inputs[fieldPassword].SetValue("")
+			m.inputs[fieldPassword].EchoMode = textinput.EchoPassword
+			m.inputs[fieldPassword].EchoCharacter = '*'
+			// fall through to updateInput to type the character
+		}
+	}
+
 	return m.updateInput(msg)
+}
+
+func (m credentialFormModel) handleEsc() (credentialFormModel, tea.Cmd) {
+	// when a dual-mode field is in edit mode, esc returns to cycle mode
+	if !m.editing {
+		if m.focus == fieldUsername && m.usernameMode == modeEdit {
+			m.usernameMode = modeCycle
+			m.inputs[fieldUsername].SetValue(m.generatedUser)
+			return m, nil
+		}
+		if m.focus == fieldPassword && m.passwordMode == modeEdit {
+			m.passwordMode = modeCycle
+			m.inputs[fieldPassword].SetValue(m.generatedPW)
+			m.inputs[fieldPassword].EchoMode = textinput.EchoNormal
+			return m, nil
+		}
+	}
+
+	// normal esc behavior: navigate back
+	if m.editing {
+		c := m.existing
+		return m, func() tea.Msg { return viewCredentialMsg{credential: c} }
+	}
+	return m, func() tea.Msg { return navigateMsg{view: viewCredentialList} }
+}
+
+func (m credentialFormModel) cycleUsername() credentialFormModel {
+	nextIdx := m.usernameIdx + 1
+	// options 0..3 are static name-based; index 4 is random handle
+	if nextIdx == len(m.usernameOptions) {
+		// show random handle (regenerated each cycle)
+		handle := identity.RandomHandle()
+		m.generatedUser = handle
+		m.inputs[fieldUsername].SetValue(handle)
+		m.usernameIdx = nextIdx
+		return m
+	}
+	// after random handle, wrap to start
+	if nextIdx > len(m.usernameOptions) {
+		nextIdx = 0
+	}
+	m.usernameIdx = nextIdx
+	m.generatedUser = m.usernameOptions[m.usernameIdx]
+	m.inputs[fieldUsername].SetValue(m.generatedUser)
+	return m
+}
+
+func (m credentialFormModel) cyclePassword() credentialFormModel {
+	m.generatedPW = zcrypto.GeneratePassword(20)
+	m.inputs[fieldPassword].SetValue(m.generatedPW)
+	return m
 }
 
 func (m credentialFormModel) updateInput(msg tea.Msg) (credentialFormModel, tea.Cmd) {
@@ -171,7 +286,7 @@ func (m credentialFormModel) submit() (credentialFormModel, tea.Cmd) {
 		c.UpdatedAt = now
 	} else {
 		c.ID = credentialHexID()
-		c.IdentityID = m.identityID
+		c.IdentityID = m.identity.ID
 		c.CreatedAt = now
 		c.UpdatedAt = now
 	}
@@ -192,7 +307,15 @@ func (m credentialFormModel) View() string {
 		action = "edit credential"
 	}
 	title := zstyle.Title.Render(action)
-	s := fmt.Sprintf("\n  %s\n\n", title)
+	s := fmt.Sprintf("\n  %s\n", title)
+
+	// identity header
+	if !m.editing {
+		name := m.identity.FirstName + " " + m.identity.LastName
+		header := name + "  " + m.identity.Email
+		s += "  " + zstyle.MutedText.Render(header) + "\n"
+	}
+	s += "\n"
 
 	for i := range fieldCount {
 		label := zstyle.MutedText.Render(fmt.Sprintf("  %-12s", fieldLabels[i]))
@@ -200,7 +323,20 @@ func (m credentialFormModel) View() string {
 		if i == m.focus {
 			cursor = "> "
 		}
-		s += fmt.Sprintf("  %s%s %s\n", cursor, label, m.inputs[i].View())
+
+		fieldView := m.inputs[i].View()
+
+		// show [generated] indicator for dual-mode fields in cycle mode
+		if !m.editing {
+			if i == fieldUsername && m.usernameMode == modeCycle {
+				fieldView += " " + zstyle.MutedText.Render("[generated]")
+			}
+			if i == fieldPassword && m.passwordMode == modeCycle {
+				fieldView += " " + zstyle.MutedText.Render("[generated]")
+			}
+		}
+
+		s += fmt.Sprintf("  %s%s %s\n", cursor, label, fieldView)
 	}
 
 	s += "\n"
@@ -211,7 +347,7 @@ func (m credentialFormModel) View() string {
 		s += "\n"
 	}
 
-	help := "tab next  shift+tab prev  ctrl+g generate password  enter save  esc cancel"
+	help := "tab next  shift+tab prev  space cycle  enter save  esc cancel"
 	s += "  " + zstyle.MutedText.Render(help) + "\n"
 	return s
 }

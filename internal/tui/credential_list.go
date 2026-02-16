@@ -8,11 +8,12 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/zarlcorp/core/pkg/zstyle"
 	"github.com/zarlcorp/zburn/internal/credential"
+	"github.com/zarlcorp/zburn/internal/identity"
 )
 
 // credentialListModel displays credentials for a single identity.
 type credentialListModel struct {
-	identityID  string
+	identity    identity.Identity
 	credentials []credential.Credential
 	cursor      int
 	flash       string
@@ -31,7 +32,7 @@ type deleteCredentialMsg struct {
 
 // addCredentialMsg requests adding a new credential for the identity.
 type addCredentialMsg struct {
-	identityID string
+	identity identity.Identity
 }
 
 // editCredentialMsg requests editing an existing credential.
@@ -39,12 +40,12 @@ type editCredentialMsg struct {
 	credential credential.Credential
 }
 
-func newCredentialListModel(identityID string, creds []credential.Credential) credentialListModel {
+func newCredentialListModel(id identity.Identity, creds []credential.Credential) credentialListModel {
 	sort.Slice(creds, func(i, j int) bool {
 		return creds[i].Label < creds[j].Label
 	})
 	return credentialListModel{
-		identityID:  identityID,
+		identity:    id,
 		credentials: creds,
 	}
 }
@@ -103,8 +104,8 @@ func (m credentialListModel) handleKey(msg tea.KeyMsg) (credentialListModel, tea
 
 	switch msg.String() {
 	case "a":
-		id := m.identityID
-		return m, func() tea.Msg { return addCredentialMsg{identityID: id} }
+		id := m.identity
+		return m, func() tea.Msg { return addCredentialMsg{identity: id} }
 
 	case "d":
 		if len(m.credentials) == 0 {

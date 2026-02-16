@@ -12,7 +12,7 @@ import (
 
 // viewCredentialsMsg requests viewing credentials for an identity.
 type viewCredentialsMsg struct {
-	identityID string
+	identity identity.Identity
 }
 
 // burnStartMsg tells the root model to show the burn confirmation for an identity.
@@ -102,8 +102,8 @@ func (m detailModel) handleKey(msg tea.KeyMsg) (detailModel, tea.Cmd) {
 		return m, clearFlashAfter()
 
 	case "w":
-		id := m.identity.ID
-		return m, func() tea.Msg { return viewCredentialsMsg{identityID: id} }
+		id := m.identity
+		return m, func() tea.Msg { return viewCredentialsMsg{identity: id} }
 
 	case "d":
 		id := m.identity

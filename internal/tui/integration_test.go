@@ -168,7 +168,7 @@ func TestIntegrationCredentialEditPersists(t *testing.T) {
 	m = processMsg(t, m, saveCredentialMsg{credential: edited})
 
 	// verify by loading credential list
-	result, _ := m.Update(viewCredentialsMsg{identityID: id.ID})
+	result, _ := m.Update(viewCredentialsMsg{identity: id})
 	rm := result.(Model)
 	if rm.active != viewCredentialList {
 		t.Fatalf("active = %d, want viewCredentialList", rm.active)
@@ -209,7 +209,7 @@ func TestIntegrationCredentialDeleteOthersRemain(t *testing.T) {
 	m = processMsg(t, m, deleteCredentialMsg{id: "cred-del-001"})
 
 	// load credential list — should have 2 remaining
-	result, _ := m.Update(viewCredentialsMsg{identityID: id.ID})
+	result, _ := m.Update(viewCredentialsMsg{identity: id})
 	rm := result.(Model)
 	if len(rm.credentialList.credentials) != 2 {
 		t.Fatalf("credentials = %d, want 2", len(rm.credentialList.credentials))
@@ -263,7 +263,7 @@ func TestIntegrationCredentialIsolation(t *testing.T) {
 	})
 
 	// load credentials for identity A — should see 2
-	result, _ := m.Update(viewCredentialsMsg{identityID: "id-A"})
+	result, _ := m.Update(viewCredentialsMsg{identity: idA})
 	rm := result.(Model)
 	if len(rm.credentialList.credentials) != 2 {
 		t.Errorf("identity A credentials = %d, want 2", len(rm.credentialList.credentials))
@@ -275,7 +275,7 @@ func TestIntegrationCredentialIsolation(t *testing.T) {
 	}
 
 	// load credentials for identity B — should see 1
-	result, _ = rm.Update(viewCredentialsMsg{identityID: "id-B"})
+	result, _ = rm.Update(viewCredentialsMsg{identity: idB})
 	rm = result.(Model)
 	if len(rm.credentialList.credentials) != 1 {
 		t.Errorf("identity B credentials = %d, want 1", len(rm.credentialList.credentials))

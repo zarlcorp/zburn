@@ -124,7 +124,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleViewIdentity(msg.identity)
 
 	case viewCredentialsMsg:
-		return m.loadCredentialList(msg.identityID)
+		return m.loadCredentialList(msg.identity)
 
 	case viewCredentialMsg:
 		m.credentialDetail = newCredentialDetailModel(msg.credential)
@@ -132,13 +132,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.credentialDetail.Init()
 
 	case addCredentialMsg:
-		m.credentialForm = newCredentialFormModel(msg.identityID, nil)
+		m.credentialForm = newCredentialFormModel(msg.identity, nil)
 		m.active = viewCredentialForm
 		return m, m.credentialForm.Init()
 
 	case editCredentialMsg:
 		c := msg.credential
-		m.credentialForm = newCredentialFormModel(c.IdentityID, &c)
+		m.credentialForm = newCredentialFormModel(m.detail.identity, &c)
 		m.active = viewCredentialForm
 		return m, m.credentialForm.Init()
 
@@ -317,7 +317,7 @@ func (m Model) navigate(view viewID) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case viewCredentialList:
-		return m.loadCredentialList(m.credentialList.identityID)
+		return m.loadCredentialList(m.credentialList.identity)
 
 	case viewSettings:
 		m.settings = newSettingsModel(m.ncConfig, m.gmConfig, m.twConfig)
@@ -454,16 +454,16 @@ func (m Model) countCredentials(identityID string) (int, error) {
 	return count, nil
 }
 
-func (m Model) loadCredentialList(identityID string) (tea.Model, tea.Cmd) {
+func (m Model) loadCredentialList(id identity.Identity) (tea.Model, tea.Cmd) {
 	if m.credentials == nil {
-		m.credentialList = newCredentialListModel(identityID, nil)
+		m.credentialList = newCredentialListModel(id, nil)
 		m.active = viewCredentialList
 		return m, nil
 	}
 
 	all, err := m.credentials.List()
 	if err != nil {
-		m.credentialList = newCredentialListModel(identityID, nil)
+		m.credentialList = newCredentialListModel(id, nil)
 		m.credentialList.flash = "load: " + err.Error()
 		m.active = viewCredentialList
 		return m, clearFlashAfter()
@@ -472,12 +472,12 @@ func (m Model) loadCredentialList(identityID string) (tea.Model, tea.Cmd) {
 	// filter by identity
 	var creds []credential.Credential
 	for _, c := range all {
-		if c.IdentityID == identityID {
+		if c.IdentityID == id.ID {
 			creds = append(creds, c)
 		}
 	}
 
-	m.credentialList = newCredentialListModel(identityID, creds)
+	m.credentialList = newCredentialListModel(id, creds)
 	m.active = viewCredentialList
 	return m, nil
 }
@@ -503,14 +503,6 @@ func (m Model) handleDeleteCredential(id string) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// remember the identity ID before deleting
-	identityID := ""
-	if m.active == viewCredentialDetail {
-		identityID = m.credentialDetail.credential.IdentityID
-	} else if m.active == viewCredentialList {
-		identityID = m.credentialList.identityID
-	}
-
 	if err := m.credentials.Delete(id); err != nil {
 		if m.active == viewCredentialDetail {
 			m.credentialDetail.flash = "delete: " + err.Error()
@@ -520,11 +512,9 @@ func (m Model) handleDeleteCredential(id string) (tea.Model, tea.Cmd) {
 		return m, clearFlashAfter()
 	}
 
-	// go back to credential list
-	if identityID != "" {
-		return m.loadCredentialList(identityID)
-	}
-	return m, nil
+	// go back to credential list; the identity is always available from
+	// the credential list model since we navigate through it
+	return m.loadCredentialList(m.credentialList.identity)
 }
 
 // loadConfigs reads all provider configs from the store into cached fields.
