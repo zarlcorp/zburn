@@ -23,17 +23,16 @@ type ForwardingRule struct {
 
 // Config holds credentials for the Namecheap API.
 type Config struct {
-	APIUser  string
-	APIKey   string
 	Username string
-	ClientIP string
+	APIKey   string
 }
 
 // Client communicates with the Namecheap API.
 type Client struct {
-	cfg     Config
-	baseURL string
-	http    *http.Client
+	cfg      Config
+	baseURL  string
+	http     *http.Client
+	clientIP string // cached after first detection
 }
 
 // NewClient creates a Namecheap API client.
@@ -52,7 +51,10 @@ func (c *Client) GetForwarding(ctx context.Context, domain string) ([]Forwarding
 		return nil, fmt.Errorf("get forwarding: %w", err)
 	}
 
-	params := c.baseParams("namecheap.domains.dns.getEmailForwarding")
+	params, err := c.baseParams(ctx, "namecheap.domains.dns.getEmailForwarding")
+	if err != nil {
+		return nil, fmt.Errorf("get forwarding: %w", err)
+	}
 	params.Set("DomainName", domain)
 	params.Set("SLD", sld)
 	params.Set("TLD", tld)
@@ -95,7 +97,10 @@ func (c *Client) SetForwarding(ctx context.Context, domain string, rules []Forwa
 		return fmt.Errorf("set forwarding: %w", err)
 	}
 
-	params := c.baseParams("namecheap.domains.dns.setEmailForwarding")
+	params, err := c.baseParams(ctx, "namecheap.domains.dns.setEmailForwarding")
+	if err != nil {
+		return fmt.Errorf("set forwarding: %w", err)
+	}
 	params.Set("DomainName", domain)
 	params.Set("SLD", sld)
 	params.Set("TLD", tld)
@@ -169,14 +174,68 @@ func (c *Client) RemoveForwarding(ctx context.Context, domain, mailbox string) e
 	return nil
 }
 
-func (c *Client) baseParams(command string) url.Values {
+// ListDomains returns domain names associated with the account.
+func (c *Client) ListDomains(ctx context.Context) ([]string, error) {
+	params, err := c.baseParams(ctx, "namecheap.domains.getList")
+	if err != nil {
+		return nil, fmt.Errorf("list domains: %w", err)
+	}
+
+	body, err := c.do(ctx, params)
+	if err != nil {
+		return nil, fmt.Errorf("list domains: %w", err)
+	}
+
+	var resp apiResponse
+	if err := xml.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("list domains: parse response: %w", err)
+	}
+
+	if err := resp.err(); err != nil {
+		return nil, fmt.Errorf("list domains: %w", err)
+	}
+
+	var result domainsGetListResult
+	if err := xml.Unmarshal(resp.CommandResponse.Raw, &result); err != nil {
+		return nil, fmt.Errorf("list domains: parse result: %w", err)
+	}
+
+	domains := make([]string, len(result.Domains))
+	for i, d := range result.Domains {
+		domains[i] = d.Name
+	}
+
+	return domains, nil
+}
+
+func (c *Client) baseParams(ctx context.Context, command string) (url.Values, error) {
+	ip, err := c.resolveIP(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	return url.Values{
-		"ApiUser":  {c.cfg.APIUser},
+		"ApiUser":  {c.cfg.Username},
 		"ApiKey":   {c.cfg.APIKey},
 		"UserName": {c.cfg.Username},
-		"ClientIp": {c.cfg.ClientIP},
+		"ClientIp": {ip},
 		"Command":  {command},
+	}, nil
+}
+
+// resolveIP returns the cached client IP, detecting it on first call.
+func (c *Client) resolveIP(ctx context.Context) (string, error) {
+	if c.clientIP != "" {
+		return c.clientIP, nil
 	}
+
+	ip, err := detectPublicIP(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	c.clientIP = ip
+	return ip, nil
 }
 
 func (c *Client) do(ctx context.Context, params url.Values) ([]byte, error) {
@@ -259,4 +318,13 @@ type getForwardingResult struct {
 type forwardingEntry struct {
 	MailBox   string `xml:"mailbox,attr"`
 	ForwardTo string `xml:",chardata"`
+}
+
+type domainsGetListResult struct {
+	XMLName xml.Name      `xml:"DomainGetListResult"`
+	Domains []domainEntry `xml:"Domain"`
+}
+
+type domainEntry struct {
+	Name string `xml:"Name,attr"`
 }
