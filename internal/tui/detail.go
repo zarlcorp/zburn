@@ -11,13 +11,19 @@ import (
 	"github.com/zarlcorp/zburn/internal/identity"
 )
 
+// viewCredentialsMsg requests viewing credentials for an identity.
+type viewCredentialsMsg struct {
+	identityID string
+}
+
 // detailModel displays all fields of a saved identity.
 type detailModel struct {
-	identity identity.Identity
-	fields   []identityField
-	cursor   int
-	flash    string
-	confirm  bool
+	identity       identity.Identity
+	fields         []identityField
+	cursor         int
+	flash          string
+	confirm        bool
+	credentialCount int
 }
 
 func newDetailModel(id identity.Identity) detailModel {
@@ -94,6 +100,10 @@ func (m detailModel) handleKey(msg tea.KeyMsg) (detailModel, tea.Cmd) {
 		m.flash = "copied all!"
 		return m, clearFlashAfter()
 
+	case "w":
+		id := m.identity.ID
+		return m, func() tea.Msg { return viewCredentialsMsg{identityID: id} }
+
 	case "d":
 		m.confirm = true
 		return m, nil
@@ -138,6 +148,12 @@ func (m detailModel) View() string {
 
 	s += "\n"
 
+	// credentials section
+	credLabel := fmt.Sprintf("credentials (%d)", m.credentialCount)
+	s += "  " + zstyle.Subtitle.Render(credLabel) + "  " + zstyle.MutedText.Render("w to view") + "\n"
+
+	s += "\n"
+
 	// always reserve a line for flash/confirm to prevent layout shift
 	if m.confirm {
 		s += "  " + zstyle.StatusWarn.Render("delete? y/n") + "\n"
@@ -147,7 +163,7 @@ func (m detailModel) View() string {
 		s += "\n"
 	}
 
-	help := "enter copy field  c copy all  d delete  esc back  q quit"
+	help := "enter copy field  c copy all  w credentials  d delete  esc back  q quit"
 	s += "  " + zstyle.MutedText.Render(help) + "\n"
 	return s
 }

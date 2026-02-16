@@ -9,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/zarlcorp/core/pkg/zfilesystem"
 	"github.com/zarlcorp/core/pkg/zstore"
+	"github.com/zarlcorp/zburn/internal/credential"
 	"github.com/zarlcorp/zburn/internal/identity"
 )
 
@@ -20,6 +21,9 @@ const (
 	viewGenerate
 	viewList
 	viewDetail
+	viewCredentialList
+	viewCredentialDetail
+	viewCredentialForm
 )
 
 // Model is the root TUI model.
@@ -29,14 +33,18 @@ type Model struct {
 	gen        *identity.Generator
 	store      *zstore.Store
 	identities *zstore.Collection[identity.Identity]
+	credentials *zstore.Collection[credential.Credential]
 	firstRun   bool
 
-	active   viewID
-	password passwordModel
-	menu     menuModel
-	generate generateModel
-	list     listModel
-	detail   detailModel
+	active           viewID
+	password         passwordModel
+	menu             menuModel
+	generate         generateModel
+	list             listModel
+	detail           detailModel
+	credentialList   credentialListModel
+	credentialDetail credentialDetailModel
+	credentialForm   credentialFormModel
 }
 
 // New creates the root TUI model.
@@ -74,9 +82,32 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleDelete(msg.id)
 
 	case viewIdentityMsg:
-		m.detail = newDetailModel(msg.identity)
-		m.active = viewDetail
-		return m, nil
+		return m.handleViewIdentity(msg.identity)
+
+	case viewCredentialsMsg:
+		return m.loadCredentialList(msg.identityID)
+
+	case viewCredentialMsg:
+		m.credentialDetail = newCredentialDetailModel(msg.credential)
+		m.active = viewCredentialDetail
+		return m, m.credentialDetail.Init()
+
+	case addCredentialMsg:
+		m.credentialForm = newCredentialFormModel(msg.identityID, nil)
+		m.active = viewCredentialForm
+		return m, m.credentialForm.Init()
+
+	case editCredentialMsg:
+		c := msg.credential
+		m.credentialForm = newCredentialFormModel(c.IdentityID, &c)
+		m.active = viewCredentialForm
+		return m, m.credentialForm.Init()
+
+	case saveCredentialMsg:
+		return m.handleSaveCredential(msg.credential)
+
+	case deleteCredentialMsg:
+		return m.handleDeleteCredential(msg.id)
 	}
 
 	return m.updateActive(msg)
@@ -94,6 +125,12 @@ func (m Model) View() string {
 		return m.list.View()
 	case viewDetail:
 		return m.detail.View()
+	case viewCredentialList:
+		return m.credentialList.View()
+	case viewCredentialDetail:
+		return m.credentialDetail.View()
+	case viewCredentialForm:
+		return m.credentialForm.View()
 	}
 	return ""
 }
@@ -112,6 +149,12 @@ func (m Model) updateActive(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.list, cmd = m.list.Update(msg)
 	case viewDetail:
 		m.detail, cmd = m.detail.Update(msg)
+	case viewCredentialList:
+		m.credentialList, cmd = m.credentialList.Update(msg)
+	case viewCredentialDetail:
+		m.credentialDetail, cmd = m.credentialDetail.Update(msg)
+	case viewCredentialForm:
+		m.credentialForm, cmd = m.credentialForm.Update(msg)
 	}
 
 	return m, cmd
@@ -132,7 +175,14 @@ func (m Model) openStore(password string) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	col, err := zstore.NewCollection[identity.Identity](s, "identities")
+	idCol, err := zstore.NewCollection[identity.Identity](s, "identities")
+	if err != nil {
+		s.Close()
+		m.password, _ = m.password.Update(passwordErrMsg{err: err})
+		return m, nil
+	}
+
+	credCol, err := zstore.NewCollection[credential.Credential](s, "credentials")
 	if err != nil {
 		s.Close()
 		m.password, _ = m.password.Update(passwordErrMsg{err: err})
@@ -140,7 +190,8 @@ func (m Model) openStore(password string) (tea.Model, tea.Cmd) {
 	}
 
 	m.store = s
-	m.identities = col
+	m.identities = idCol
+	m.credentials = credCol
 	m.active = viewMenu
 	return m, nil
 }
@@ -165,6 +216,9 @@ func (m Model) navigate(view viewID) (tea.Model, tea.Cmd) {
 		// detail is set by viewIdentityMsg, not navigateMsg
 		m.active = viewDetail
 		return m, nil
+
+	case viewCredentialList:
+		return m.loadCredentialList(m.credentialList.identityID)
 	}
 
 	return m, nil
@@ -233,10 +287,111 @@ func (m Model) handleDelete(id string) (tea.Model, tea.Cmd) {
 	return m.loadList()
 }
 
+func (m Model) handleViewIdentity(id identity.Identity) (tea.Model, tea.Cmd) {
+	m.detail = newDetailModel(id)
+
+	// count credentials for this identity
+	if m.credentials != nil {
+		count, err := m.countCredentials(id.ID)
+		if err == nil {
+			m.detail.credentialCount = count
+		}
+	}
+
+	m.active = viewDetail
+	return m, nil
+}
+
+func (m Model) countCredentials(identityID string) (int, error) {
+	all, err := m.credentials.List()
+	if err != nil {
+		return 0, err
+	}
+	count := 0
+	for _, c := range all {
+		if c.IdentityID == identityID {
+			count++
+		}
+	}
+	return count, nil
+}
+
+func (m Model) loadCredentialList(identityID string) (tea.Model, tea.Cmd) {
+	if m.credentials == nil {
+		m.credentialList = newCredentialListModel(identityID, nil)
+		m.active = viewCredentialList
+		return m, nil
+	}
+
+	all, err := m.credentials.List()
+	if err != nil {
+		m.credentialList = newCredentialListModel(identityID, nil)
+		m.credentialList.flash = "load: " + err.Error()
+		m.active = viewCredentialList
+		return m, clearFlashAfter()
+	}
+
+	// filter by identity
+	var creds []credential.Credential
+	for _, c := range all {
+		if c.IdentityID == identityID {
+			creds = append(creds, c)
+		}
+	}
+
+	m.credentialList = newCredentialListModel(identityID, creds)
+	m.active = viewCredentialList
+	return m, nil
+}
+
+func (m Model) handleSaveCredential(c credential.Credential) (tea.Model, tea.Cmd) {
+	if m.credentials == nil {
+		return m, nil
+	}
+
+	if err := m.credentials.Put(c.ID, c); err != nil {
+		m.credentialForm.flash = "save: " + err.Error()
+		return m, clearFlashAfter()
+	}
+
+	// after save, go to credential detail
+	m.credentialDetail = newCredentialDetailModel(c)
+	m.active = viewCredentialDetail
+	return m, m.credentialDetail.Init()
+}
+
+func (m Model) handleDeleteCredential(id string) (tea.Model, tea.Cmd) {
+	if m.credentials == nil {
+		return m, nil
+	}
+
+	// remember the identity ID before deleting
+	identityID := ""
+	if m.active == viewCredentialDetail {
+		identityID = m.credentialDetail.credential.IdentityID
+	} else if m.active == viewCredentialList {
+		identityID = m.credentialList.identityID
+	}
+
+	if err := m.credentials.Delete(id); err != nil {
+		if m.active == viewCredentialDetail {
+			m.credentialDetail.flash = "delete: " + err.Error()
+			return m, clearFlashAfter()
+		}
+		m.credentialList.flash = "delete: " + err.Error()
+		return m, clearFlashAfter()
+	}
+
+	// go back to credential list
+	if identityID != "" {
+		return m.loadCredentialList(identityID)
+	}
+	return m, nil
+}
+
 // Close cleans up resources. Call after the program exits.
 func (m Model) Close() {
 	if m.store != nil {
 		m.store.Close()
 	}
 }
-
