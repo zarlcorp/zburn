@@ -5,10 +5,14 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"strings"
 	"time"
 
 	"github.com/zarlcorp/core/pkg/zcrypto"
 )
+
+// numEmailPatterns is the total number of email local-part patterns.
+const numEmailPatterns = 8
 
 // Generator produces random identity data using crypto/rand.
 type Generator struct{}
@@ -19,13 +23,17 @@ func New() *Generator {
 }
 
 // Generate produces a complete random identity.
-func (g *Generator) Generate() Identity {
+// When domain is empty, falls back to the default zburn.id domain.
+func (g *Generator) Generate(domain string) Identity {
+	if domain == "" {
+		domain = defaultDomain
+	}
 	first, last := g.Name()
 	return Identity{
 		ID:        g.hexID(),
 		FirstName: first,
 		LastName:  last,
-		Email:     g.Email(),
+		Email:     g.Email(first, last, domain),
 		Phone:     g.phone(),
 		Street:    g.street(),
 		City:      pick(cities),
@@ -36,12 +44,45 @@ func (g *Generator) Generate() Identity {
 	}
 }
 
-// Email generates an email in the form <adjective><noun><4digits>@zburn.id.
-func (g *Generator) Email() string {
-	adj := pick(adjectives)
-	noun := pick(nouns)
-	digits := fmt.Sprintf("%04d", randIntn(10000))
-	return adj + noun + digits + "@" + emailDomain
+// Email generates an email address using the identity's name and domain.
+// One of several patterns is chosen randomly per call:
+//   - firstname.lastname
+//   - firstinitiallastname
+//   - firstnamelastname
+//   - firstname.lastname + 2 digits
+//   - firstinitiallastname + 2 digits
+//   - firstinitial.lastname
+//   - lastname.firstname
+//   - adjective + noun + 4 digits (random, name-independent)
+func (g *Generator) Email(firstName, lastName, domain string) string {
+	if domain == "" {
+		domain = defaultDomain
+	}
+	first := strings.ToLower(firstName)
+	last := strings.ToLower(lastName)
+	initial := string(first[0])
+
+	pattern := randIntn(numEmailPatterns)
+	var local string
+	switch pattern {
+	case 0: // firstname.lastname
+		local = first + "." + last
+	case 1: // firstinitiallastname
+		local = initial + last
+	case 2: // firstnamelastname
+		local = first + last
+	case 3: // firstname.lastname + 2 digits
+		local = first + "." + last + fmt.Sprintf("%02d", randIntn(100))
+	case 4: // firstinitiallastname + 2 digits
+		local = initial + last + fmt.Sprintf("%02d", randIntn(100))
+	case 5: // firstinitial.lastname
+		local = initial + "." + last
+	case 6: // lastname.firstname
+		local = last + "." + first
+	case 7: // adjective + noun + 4 digits
+		local = pick(adjectives) + pick(nouns) + fmt.Sprintf("%04d", randIntn(10000))
+	}
+	return local + "@" + domain
 }
 
 // Password generates a password of the given length containing at least

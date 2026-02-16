@@ -105,7 +105,8 @@ func OpenStore(dir string) (*zstore.Store, *zstore.Collection[identity.Identity]
 // CmdEmail generates and prints a random email.
 func CmdEmail() {
 	g := identity.New()
-	fmt.Println(g.Email())
+	first, last := g.Name()
+	fmt.Println(g.Email(first, last, ""))
 }
 
 // CmdIdentity generates and prints a complete identity.
@@ -114,7 +115,7 @@ func CmdIdentity(args []string) {
 	save := hasFlag(args, "--save")
 
 	g := identity.New()
-	id := g.Generate()
+	id := g.Generate("")
 
 	if asJSON {
 		printJSON(id)

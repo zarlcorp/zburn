@@ -1,8 +1,7 @@
 package identity
 
-// emailDomain is the domain used for generated addresses.
-// kept as a constant so it's easy to change later.
-const emailDomain = "zburn.id"
+// defaultDomain is the fallback domain when none is provided.
+const defaultDomain = "zburn.id"
 
 var firstNames = []string{
 	"James", "Mary", "Robert", "Patricia", "John", "Jennifer", "Michael", "Linda",
