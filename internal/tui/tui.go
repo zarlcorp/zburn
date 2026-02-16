@@ -78,6 +78,10 @@ type Model struct {
 	ncConfig NamecheapSettings
 	gmConfig GmailSettings
 	twConfig TwilioSettings
+
+	// domain rotation
+	domains   []string
+	domainIdx int
 }
 
 // New creates the root TUI model.
@@ -164,6 +168,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case burnIdentityMsg:
 		return m.executeBurn(msg.identity)
+
+	case cycleDomainMsg:
+		return m.handleCycleDomain()
 
 	case burnResultMsg:
 		m.burn, _ = m.burn.Update(msg)
@@ -293,8 +300,9 @@ func (m Model) navigate(view viewID) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case viewGenerate:
-		id := m.gen.Generate("")
-		m.generate = newGenerateModel(id)
+		domain := m.currentDomain()
+		id := m.gen.Generate(domain)
+		m.generate = newGenerateModel(id, domain)
 		m.active = viewGenerate
 		return m, nil
 
@@ -376,6 +384,17 @@ func (m Model) handleQuickEmail() (tea.Model, tea.Cmd) {
 	return m, func() tea.Msg {
 		return flashMsg{}
 	}
+}
+
+func (m Model) handleCycleDomain() (tea.Model, tea.Cmd) {
+	if len(m.domains) <= 1 {
+		return m, nil
+	}
+	m.domainIdx = (m.domainIdx + 1) % len(m.domains)
+	domain := m.domains[m.domainIdx]
+	id := m.gen.Generate(domain)
+	m.generate = newGenerateModel(id, domain)
+	return m, nil
 }
 
 func (m Model) handleSave(id identity.Identity) (tea.Model, tea.Cmd) {
@@ -515,6 +534,8 @@ func (m *Model) loadConfigs() {
 	m.ncConfig = loadConfig[NamecheapSettings](m.configs, "namecheap")
 	m.gmConfig = loadConfig[GmailSettings](m.configs, "gmail")
 	m.twConfig = loadConfig[TwilioSettings](m.configs, "twilio")
+	m.domains = m.ncConfig.CachedDomains
+	m.domainIdx = 0
 }
 
 // loadConfig reads a typed config from the envelope collection.
@@ -554,6 +575,8 @@ func (m Model) handleSaveNamecheap(s NamecheapSettings) (tea.Model, tea.Cmd) {
 	}
 
 	m.ncConfig = s
+	m.domains = s.CachedDomains
+	m.domainIdx = 0
 	// flash is already set by the namecheap model's validate handler
 	return m, clearFlashAfter()
 }
@@ -591,6 +614,14 @@ func (m Model) handleDisconnectGmail() (tea.Model, tea.Cmd) {
 	m.settingsGmail.current = m.gmConfig
 	m.settingsGmail.flash = "disconnected"
 	return m, clearFlashAfter()
+}
+
+// currentDomain returns the currently selected domain, or "" if none configured.
+func (m Model) currentDomain() string {
+	if len(m.domains) == 0 {
+		return ""
+	}
+	return m.domains[m.domainIdx]
 }
 
 // NamecheapConfigured reports whether Namecheap is configured.
