@@ -241,22 +241,9 @@ func TestMenuSelectGenerate(t *testing.T) {
 	}
 }
 
-func TestMenuSelectEmail(t *testing.T) {
-	m := newMenuModel("1.0")
-	m.cursor = 1
-	_, cmd := m.Update(enterKey())
-	if cmd == nil {
-		t.Fatal("enter should produce command")
-	}
-	msg := cmd()
-	if _, ok := msg.(quickEmailMsg); !ok {
-		t.Error("should emit quickEmailMsg")
-	}
-}
-
 func TestMenuSelectBrowse(t *testing.T) {
 	m := newMenuModel("1.0")
-	m.cursor = 2
+	m.cursor = 1
 	_, cmd := m.Update(enterKey())
 	if cmd == nil {
 		t.Fatal("enter should produce command")
@@ -1020,7 +1007,7 @@ func TestCycleDomainMsgAdvancesIndex(t *testing.T) {
 	}
 }
 
-func TestCycleDomainRegeneratesIdentity(t *testing.T) {
+func TestCycleDomainKeepsIdentity(t *testing.T) {
 	m := New("1.0", t.TempDir(), identity.New(), false)
 	m.domains = []string{"alpha.com", "bravo.io"}
 	m.domainIdx = 0
@@ -1028,14 +1015,20 @@ func TestCycleDomainRegeneratesIdentity(t *testing.T) {
 
 	id := m.gen.Generate("alpha.com")
 	m.generate = newGenerateModel(id, "alpha.com")
-	oldID := m.generate.identity.ID
+	oldName := m.generate.identity.FirstName + " " + m.generate.identity.LastName
+	oldPhone := m.generate.identity.Phone
 
 	result, _ := m.Update(cycleDomainMsg{})
 	rm := result.(Model)
 
-	// should have regenerated with a new identity
-	if rm.generate.identity.ID == oldID {
-		t.Error("identity should be regenerated with new domain")
+	// name should stay the same
+	newName := rm.generate.identity.FirstName + " " + rm.generate.identity.LastName
+	if newName != oldName {
+		t.Errorf("name changed from %q to %q, should stay the same", oldName, newName)
+	}
+	// phone should stay the same
+	if rm.generate.identity.Phone != oldPhone {
+		t.Errorf("phone changed from %q to %q, should stay the same", oldPhone, rm.generate.identity.Phone)
 	}
 	// email should use the new domain
 	if !strings.Contains(rm.generate.identity.Email, "bravo.io") {

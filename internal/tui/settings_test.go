@@ -833,7 +833,7 @@ func TestTwilioNavigation(t *testing.T) {
 
 func TestMenuSelectSettings(t *testing.T) {
 	m := newMenuModel("1.0")
-	m.cursor = 3 // settings
+	m.cursor = 2 // settings
 	_, cmd := m.Update(enterKey())
 	if cmd == nil {
 		t.Fatal("enter should produce command")
