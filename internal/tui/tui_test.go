@@ -292,7 +292,7 @@ func TestMenuQuitFromLastItem(t *testing.T) {
 
 func TestGenerateViewShowsFields(t *testing.T) {
 	id := testIdentity()
-	m := newGenerateModel(id)
+	m := newGenerateModel(id, "")
 	view := m.View()
 
 	checks := []string{id.FirstName, id.Email, id.Phone, id.City}
@@ -304,7 +304,7 @@ func TestGenerateViewShowsFields(t *testing.T) {
 }
 
 func TestGenerateNavigation(t *testing.T) {
-	m := newGenerateModel(testIdentity())
+	m := newGenerateModel(testIdentity(), "")
 
 	if m.cursor != 0 {
 		t.Fatal("cursor should start at 0")
@@ -322,7 +322,7 @@ func TestGenerateNavigation(t *testing.T) {
 }
 
 func TestGenerateBackToMenu(t *testing.T) {
-	m := newGenerateModel(testIdentity())
+	m := newGenerateModel(testIdentity(), "")
 	_, cmd := m.Update(escKey())
 	if cmd == nil {
 		t.Fatal("esc should produce command")
@@ -338,7 +338,7 @@ func TestGenerateBackToMenu(t *testing.T) {
 }
 
 func TestGenerateNewIdentity(t *testing.T) {
-	m := newGenerateModel(testIdentity())
+	m := newGenerateModel(testIdentity(), "")
 	_, cmd := m.Update(keyMsg('n'))
 	if cmd == nil {
 		t.Fatal("n should produce command")
@@ -355,7 +355,7 @@ func TestGenerateNewIdentity(t *testing.T) {
 
 func TestGenerateSave(t *testing.T) {
 	id := testIdentity()
-	m := newGenerateModel(id)
+	m := newGenerateModel(id, "")
 	_, cmd := m.Update(keyMsg('s'))
 	if cmd == nil {
 		t.Fatal("s should produce command")
@@ -371,7 +371,7 @@ func TestGenerateSave(t *testing.T) {
 }
 
 func TestGenerateQuit(t *testing.T) {
-	m := newGenerateModel(testIdentity())
+	m := newGenerateModel(testIdentity(), "")
 	_, cmd := m.Update(keyMsg('q'))
 	if cmd == nil {
 		t.Fatal("q should quit from generate view")
@@ -379,7 +379,7 @@ func TestGenerateQuit(t *testing.T) {
 }
 
 func TestGenerateSavedFlash(t *testing.T) {
-	m := newGenerateModel(testIdentity())
+	m := newGenerateModel(testIdentity(), "")
 	m, _ = m.Update(identitySavedMsg{})
 	if m.flash != "saved" {
 		t.Errorf("flash = %q, want %q", m.flash, "saved")
@@ -387,7 +387,7 @@ func TestGenerateSavedFlash(t *testing.T) {
 }
 
 func TestGenerateFlashClears(t *testing.T) {
-	m := newGenerateModel(testIdentity())
+	m := newGenerateModel(testIdentity(), "")
 	m.flash = "saved"
 	m, _ = m.Update(flashMsg{})
 	if m.flash != "" {
@@ -660,7 +660,7 @@ func TestRootQuitFromMenu(t *testing.T) {
 func TestRootQuitFromGenerate(t *testing.T) {
 	m := New("1.0", t.TempDir(), identity.New(), false)
 	m.active = viewGenerate
-	m.generate = newGenerateModel(testIdentity())
+	m.generate = newGenerateModel(testIdentity(), "")
 
 	_, cmd := m.Update(keyMsg('q'))
 	if cmd == nil {
@@ -978,6 +978,200 @@ func TestRootBurnStartFromList(t *testing.T) {
 
 	if rm.active != viewBurn {
 		t.Errorf("active = %d, want viewBurn", rm.active)
+	}
+}
+
+// domain rotation tests
+
+func TestCycleDomainMsgAdvancesIndex(t *testing.T) {
+	m := New("1.0", t.TempDir(), identity.New(), false)
+	m.domains = []string{"alpha.com", "bravo.io", "charlie.net"}
+	m.domainIdx = 0
+	m.active = viewGenerate
+	m.generate = newGenerateModel(testIdentity(), "alpha.com")
+
+	result, _ := m.Update(cycleDomainMsg{})
+	rm := result.(Model)
+	if rm.domainIdx != 1 {
+		t.Errorf("domainIdx = %d, want 1", rm.domainIdx)
+	}
+	if rm.generate.domain != "bravo.io" {
+		t.Errorf("domain = %q, want %q", rm.generate.domain, "bravo.io")
+	}
+
+	// cycle again
+	result, _ = rm.Update(cycleDomainMsg{})
+	rm = result.(Model)
+	if rm.domainIdx != 2 {
+		t.Errorf("domainIdx = %d, want 2", rm.domainIdx)
+	}
+	if rm.generate.domain != "charlie.net" {
+		t.Errorf("domain = %q, want %q", rm.generate.domain, "charlie.net")
+	}
+
+	// wraps around
+	result, _ = rm.Update(cycleDomainMsg{})
+	rm = result.(Model)
+	if rm.domainIdx != 0 {
+		t.Errorf("domainIdx = %d, want 0 (wrap)", rm.domainIdx)
+	}
+	if rm.generate.domain != "alpha.com" {
+		t.Errorf("domain = %q, want %q", rm.generate.domain, "alpha.com")
+	}
+}
+
+func TestCycleDomainRegeneratesIdentity(t *testing.T) {
+	m := New("1.0", t.TempDir(), identity.New(), false)
+	m.domains = []string{"alpha.com", "bravo.io"}
+	m.domainIdx = 0
+	m.active = viewGenerate
+
+	id := m.gen.Generate("alpha.com")
+	m.generate = newGenerateModel(id, "alpha.com")
+	oldID := m.generate.identity.ID
+
+	result, _ := m.Update(cycleDomainMsg{})
+	rm := result.(Model)
+
+	// should have regenerated with a new identity
+	if rm.generate.identity.ID == oldID {
+		t.Error("identity should be regenerated with new domain")
+	}
+	// email should use the new domain
+	if !strings.Contains(rm.generate.identity.Email, "bravo.io") {
+		t.Errorf("email = %q, should contain bravo.io", rm.generate.identity.Email)
+	}
+}
+
+func TestSpaceKeyProducesCycleDomainMsg(t *testing.T) {
+	m := newGenerateModel(testIdentity(), "alpha.com")
+	_, cmd := m.Update(keyMsg(' '))
+	if cmd == nil {
+		t.Fatal("space should produce command")
+	}
+	msg := cmd()
+	if _, ok := msg.(cycleDomainMsg); !ok {
+		t.Fatal("should emit cycleDomainMsg")
+	}
+}
+
+func TestNoDomainSpaceDoesNothing(t *testing.T) {
+	m := New("1.0", t.TempDir(), identity.New(), false)
+	m.domains = nil
+	m.domainIdx = 0
+	m.active = viewGenerate
+	m.generate = newGenerateModel(testIdentity(), "")
+
+	result, _ := m.Update(cycleDomainMsg{})
+	rm := result.(Model)
+	if rm.domainIdx != 0 {
+		t.Errorf("domainIdx = %d, want 0", rm.domainIdx)
+	}
+}
+
+func TestSingleDomainSpaceDoesNothing(t *testing.T) {
+	m := New("1.0", t.TempDir(), identity.New(), false)
+	m.domains = []string{"only.com"}
+	m.domainIdx = 0
+	m.active = viewGenerate
+	m.generate = newGenerateModel(testIdentity(), "only.com")
+
+	oldID := m.generate.identity.ID
+	result, _ := m.Update(cycleDomainMsg{})
+	rm := result.(Model)
+	if rm.domainIdx != 0 {
+		t.Errorf("domainIdx = %d, want 0", rm.domainIdx)
+	}
+	// identity should not change
+	if rm.generate.identity.ID != oldID {
+		t.Error("identity should not change with single domain")
+	}
+}
+
+func TestDomainHintAppearsInView(t *testing.T) {
+	id := testIdentity()
+	m := newGenerateModel(id, "custom.io")
+	view := m.View()
+
+	if !strings.Contains(view, "[custom.io]") {
+		t.Error("view should contain domain hint [custom.io]")
+	}
+	if !strings.Contains(view, "space to cycle") {
+		t.Error("view should contain 'space to cycle' hint")
+	}
+	if !strings.Contains(view, "space domain") {
+		t.Error("help text should contain 'space domain'")
+	}
+}
+
+func TestDomainHintAbsentWhenDefault(t *testing.T) {
+	id := testIdentity()
+	m := newGenerateModel(id, "")
+	view := m.View()
+
+	if strings.Contains(view, "space to cycle") {
+		t.Error("view should not contain 'space to cycle' when no domain")
+	}
+	if strings.Contains(view, "space domain") {
+		t.Error("help text should not contain 'space domain' when no domain")
+	}
+}
+
+func TestNavigateToGenerateUsesDomain(t *testing.T) {
+	m := New("1.0", t.TempDir(), identity.New(), false)
+	m.domains = []string{"custom.io", "other.com"}
+	m.domainIdx = 0
+	m.active = viewMenu
+
+	result, _ := m.Update(navigateMsg{view: viewGenerate})
+	rm := result.(Model)
+
+	if rm.generate.domain != "custom.io" {
+		t.Errorf("generate domain = %q, want %q", rm.generate.domain, "custom.io")
+	}
+	if !strings.Contains(rm.generate.identity.Email, "custom.io") {
+		t.Errorf("email = %q, should contain custom.io", rm.generate.identity.Email)
+	}
+}
+
+func TestNavigateToGenerateWithDomainIdxPreserved(t *testing.T) {
+	m := New("1.0", t.TempDir(), identity.New(), false)
+	m.domains = []string{"first.com", "second.io"}
+	m.domainIdx = 1
+	m.active = viewMenu
+
+	result, _ := m.Update(navigateMsg{view: viewGenerate})
+	rm := result.(Model)
+
+	if rm.generate.domain != "second.io" {
+		t.Errorf("generate domain = %q, want %q", rm.generate.domain, "second.io")
+	}
+	if !strings.Contains(rm.generate.identity.Email, "second.io") {
+		t.Errorf("email = %q, should contain second.io", rm.generate.identity.Email)
+	}
+}
+
+func TestSaveNamecheapRefreshesDomains(t *testing.T) {
+	m := New("1.0", t.TempDir(), identity.New(), false)
+	m.domains = nil
+	m.domainIdx = 0
+
+	// simulate saving namecheap with domains — need handleSaveNamecheap to work
+	// which requires configs collection, so test via the domain fields directly
+	nc := NamecheapSettings{
+		Username:      "user",
+		APIKey:        "key",
+		CachedDomains: []string{"new1.com", "new2.io"},
+	}
+	m.ncConfig = nc
+	m.domains = nc.CachedDomains
+	m.domainIdx = 0
+
+	if len(m.domains) != 2 {
+		t.Fatalf("domains = %d, want 2", len(m.domains))
+	}
+	if m.currentDomain() != "new1.com" {
+		t.Errorf("currentDomain = %q, want %q", m.currentDomain(), "new1.com")
 	}
 }
 

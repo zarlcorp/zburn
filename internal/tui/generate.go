@@ -24,6 +24,7 @@ type generateModel struct {
 	cursor   int
 	flash    string
 	flashAt  time.Time
+	domain   string
 }
 
 // saveIdentityMsg requests saving the current identity.
@@ -34,11 +35,14 @@ type saveIdentityMsg struct {
 // identitySavedMsg confirms the identity was saved.
 type identitySavedMsg struct{}
 
+// cycleDomainMsg requests cycling to the next domain.
+type cycleDomainMsg struct{}
+
 // flashMsg clears the flash after a timeout.
 type flashMsg struct{}
 
-func newGenerateModel(id identity.Identity) generateModel {
-	m := generateModel{identity: id}
+func newGenerateModel(id identity.Identity, domain string) generateModel {
+	m := generateModel{identity: id, domain: domain}
 	m.fields = identityFields(id)
 	return m
 }
@@ -123,6 +127,9 @@ func (m generateModel) handleKey(msg tea.KeyMsg) (generateModel, tea.Cmd) {
 
 	case "n":
 		return m, func() tea.Msg { return navigateMsg{view: viewGenerate} }
+
+	case " ":
+		return m, func() tea.Msg { return cycleDomainMsg{} }
 	}
 
 	return m, nil
@@ -154,10 +161,14 @@ func (m generateModel) View() string {
 
 	for i, f := range m.fields {
 		label := zstyle.MutedText.Render(fmt.Sprintf("%-10s", f.label))
+		line := fmt.Sprintf("%s %s", label, f.value)
+		if f.label == "email" && m.domain != "" {
+			line += "  " + zstyle.MutedText.Render("["+m.domain+"]  space to cycle")
+		}
 		if i == m.cursor {
-			s += zstyle.ActiveBorder.Render(fmt.Sprintf("  > %s %s", label, f.value)) + "\n"
+			s += zstyle.ActiveBorder.Render(fmt.Sprintf("  > %s", line)) + "\n"
 		} else {
-			s += fmt.Sprintf("    %s %s\n", label, f.value)
+			s += fmt.Sprintf("    %s\n", line)
 		}
 	}
 
@@ -170,7 +181,11 @@ func (m generateModel) View() string {
 		s += "\n"
 	}
 
-	help := "s save  c copy all  enter copy field  n new  esc back  q quit"
+	help := "s save  c copy all  enter copy field  n new"
+	if m.domain != "" {
+		help += "  space domain"
+	}
+	help += "  esc back  q quit"
 	s += "  " + zstyle.MutedText.Render(help) + "\n"
 	return s
 }
