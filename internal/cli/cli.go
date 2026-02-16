@@ -29,7 +29,11 @@ func DataDir() string {
 }
 
 // ReadPassword prompts for a password on stderr and reads it without echo.
+// If ZBURN_PASSWORD is set, returns its value without prompting.
 func ReadPassword(prompt string, w io.Writer) (string, error) {
+	if p := os.Getenv("ZBURN_PASSWORD"); p != "" {
+		return p, nil
+	}
 	fmt.Fprint(w, prompt)
 	b, err := term.ReadPassword(int(syscall.Stdin))
 	fmt.Fprintln(w)
@@ -40,7 +44,11 @@ func ReadPassword(prompt string, w io.Writer) (string, error) {
 }
 
 // ReadNewPassword prompts for a new password with confirmation.
+// If ZBURN_PASSWORD is set, returns its value without prompting.
 func ReadNewPassword(w io.Writer) (string, error) {
+	if p := os.Getenv("ZBURN_PASSWORD"); p != "" {
+		return p, nil
+	}
 	pass, err := ReadPassword("master password: ", w)
 	if err != nil {
 		return "", err
