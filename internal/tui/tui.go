@@ -364,8 +364,24 @@ func (m Model) loadList() (tea.Model, tea.Cmd) {
 	})
 
 	m.list = newListModel(ids)
+	m.list.credCounts = m.bulkCredCounts()
 	m.active = viewList
 	return m, nil
+}
+
+func (m Model) bulkCredCounts() map[string]int {
+	if m.credentials == nil {
+		return nil
+	}
+	all, err := m.credentials.List()
+	if err != nil {
+		return nil
+	}
+	counts := make(map[string]int)
+	for _, c := range all {
+		counts[c.IdentityID]++
+	}
+	return counts
 }
 
 func (m Model) handleCycleDomain() (tea.Model, tea.Cmd) {

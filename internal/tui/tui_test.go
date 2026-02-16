@@ -398,11 +398,32 @@ func TestListViewShowsIdentities(t *testing.T) {
 	m := newListModel(ids)
 	view := m.View()
 
-	if !strings.Contains(view, "abc12345") {
-		t.Error("should show identity ID")
+	if !strings.Contains(view, "Jane Doe") {
+		t.Error("should show name")
 	}
 	if !strings.Contains(view, "jane@zburn.id") {
 		t.Error("should show email")
+	}
+}
+
+func TestListViewCredentialCount(t *testing.T) {
+	ids := []identity.Identity{testIdentity()}
+	m := newListModel(ids)
+	m.credCounts = map[string]int{"abc12345": 3}
+	view := m.View()
+
+	if !strings.Contains(view, "(3)") {
+		t.Error("should show credential count badge")
+	}
+}
+
+func TestListViewCredentialCountZero(t *testing.T) {
+	ids := []identity.Identity{testIdentity()}
+	m := newListModel(ids)
+	view := m.View()
+
+	if strings.Contains(view, "(0)") {
+		t.Error("should not show (0) badge")
 	}
 }
 
