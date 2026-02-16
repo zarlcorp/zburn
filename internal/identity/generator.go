@@ -6,18 +6,11 @@ import (
 	"fmt"
 	"math/big"
 	"time"
+
+	"github.com/zarlcorp/core/pkg/zcrypto"
 )
 
-// password character classes
-const (
-	lowerChars   = "abcdefghijklmnopqrstuvwxyz"
-	upperChars   = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	digitChars   = "0123456789"
-	symbolChars  = "!@#$%^&*()-_=+[]{}|;:,.<>?"
-	allPassChars = lowerChars + upperChars + digitChars + symbolChars
-
-	defaultPasswordLen = 20
-)
+const defaultPasswordLen = 20
 
 // Generator produces random identity data using crypto/rand.
 type Generator struct{}
@@ -57,29 +50,7 @@ func (g *Generator) Email() string {
 // Password generates a password of the given length containing at least
 // one character from each class (lower, upper, digit, symbol).
 func (g *Generator) Password(length int) string {
-	if length < 4 {
-		length = 4
-	}
-
-	buf := make([]byte, length)
-
-	// guarantee one from each class
-	buf[0] = pickByte(lowerChars)
-	buf[1] = pickByte(upperChars)
-	buf[2] = pickByte(digitChars)
-	buf[3] = pickByte(symbolChars)
-
-	for i := 4; i < length; i++ {
-		buf[i] = pickByte(allPassChars)
-	}
-
-	// shuffle using Fisher-Yates
-	for i := length - 1; i > 0; i-- {
-		j := randIntn(i + 1)
-		buf[i], buf[j] = buf[j], buf[i]
-	}
-
-	return string(buf)
+	return zcrypto.GeneratePassword(length)
 }
 
 // Name generates a random first/last name pair.
@@ -129,11 +100,6 @@ func (g *Generator) dob() time.Time {
 
 // pick returns a random element from a string slice.
 func pick(s []string) string {
-	return s[randIntn(len(s))]
-}
-
-// pickByte returns a random byte from a string.
-func pickByte(s string) byte {
 	return s[randIntn(len(s))]
 }
 

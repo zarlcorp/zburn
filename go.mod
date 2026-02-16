@@ -7,8 +7,8 @@ require (
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/zarlcorp/core/pkg/zapp v0.2.0
-	github.com/zarlcorp/core/pkg/zcrypto v0.2.0
 	github.com/zarlcorp/core/pkg/zfilesystem v0.3.0
+	github.com/zarlcorp/core/pkg/zstore v0.1.0
 	github.com/zarlcorp/core/pkg/zstyle v0.5.0
 	golang.org/x/term v0.40.0
 )
@@ -35,6 +35,7 @@ require (
 	github.com/muesli/termenv v0.16.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
+	github.com/zarlcorp/core/pkg/zcrypto v0.3.0
 	github.com/zarlcorp/core/pkg/zoptions v0.1.0 // indirect
 	github.com/zarlcorp/core/pkg/zsync v0.1.0 // indirect
 	golang.org/x/crypto v0.48.0 // indirect
