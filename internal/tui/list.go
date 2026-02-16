@@ -12,6 +12,7 @@ import (
 // listModel displays saved identities in a scrollable list.
 type listModel struct {
 	identities []identity.Identity
+	credCounts map[string]int
 	cursor     int
 	flash      string
 }
@@ -123,14 +124,14 @@ func (m listModel) View() string {
 		return s
 	}
 
-	// header
-	header := fmt.Sprintf("  %-10s %-20s %-30s %s", "id", "name", "email", "created")
-	s += zstyle.Subtitle.Render(header) + "\n"
-
 	for i, id := range m.identities {
-		name := id.FirstName + " " + id.LastName
-		line := fmt.Sprintf("  %-10s %-20s %-30s %s",
-			id.ID, truncate(name, 18), truncate(id.Email, 28), id.CreatedAt.Format("2006-01-02"))
+		name := truncate(id.FirstName+" "+id.LastName, 20)
+		email := truncate(id.Email, 30)
+		line := fmt.Sprintf("  %-20s %-30s", name, email)
+
+		if n := m.credCounts[id.ID]; n > 0 {
+			line += "  " + zstyle.MutedText.Render(fmt.Sprintf("(%d)", n))
+		}
 
 		if i == m.cursor {
 			s += zstyle.Highlight.Render("> "+line) + "\n"
