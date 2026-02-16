@@ -114,9 +114,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case navigateMsg:
 		return m.navigate(msg.view)
 
-	case quickEmailMsg:
-		return m.handleQuickEmail()
-
 	case saveIdentityMsg:
 		return m.handleSave(msg.identity)
 
@@ -371,28 +368,14 @@ func (m Model) loadList() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) handleQuickEmail() (tea.Model, tea.Cmd) {
-	first, last := m.gen.Name()
-	email := m.gen.Email(first, last, "")
-	if err := copyToClipboard(email); err != nil {
-		// fall through to menu with no notification
-		return m, nil
-	}
-
-	// show a brief flash on menu
-	m.menu = newMenuModel(m.version)
-	return m, func() tea.Msg {
-		return flashMsg{}
-	}
-}
-
 func (m Model) handleCycleDomain() (tea.Model, tea.Cmd) {
 	if len(m.domains) <= 1 {
 		return m, nil
 	}
 	m.domainIdx = (m.domainIdx + 1) % len(m.domains)
 	domain := m.domains[m.domainIdx]
-	id := m.gen.Generate(domain)
+	id := m.generate.identity
+	id.Email = m.gen.Email(id.FirstName, id.LastName, domain)
 	m.generate = newGenerateModel(id, domain)
 	return m, nil
 }

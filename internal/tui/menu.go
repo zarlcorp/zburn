@@ -13,7 +13,6 @@ type menuChoice int
 
 const (
 	menuGenerate menuChoice = iota
-	menuEmail
 	menuBrowse
 	menuSettings
 	menuQuit
@@ -21,7 +20,6 @@ const (
 
 var menuItems = []string{
 	"generate identity",
-	"generate email (quick)",
 	"browse saved identities",
 	"settings",
 	"quit",
@@ -37,9 +35,6 @@ type menuModel struct {
 type navigateMsg struct {
 	view viewID
 }
-
-// quickEmailMsg tells the root to generate and copy an email.
-type quickEmailMsg struct{}
 
 func newMenuModel(version string) menuModel {
 	return menuModel{version: version}
@@ -82,8 +77,6 @@ func (m menuModel) selectItem() tea.Cmd {
 	switch menuChoice(m.cursor) {
 	case menuGenerate:
 		return func() tea.Msg { return navigateMsg{view: viewGenerate} }
-	case menuEmail:
-		return func() tea.Msg { return quickEmailMsg{} }
 	case menuBrowse:
 		return func() tea.Msg { return navigateMsg{view: viewList} }
 	case menuSettings:
