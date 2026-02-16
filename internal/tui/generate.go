@@ -54,7 +54,6 @@ func identityFields(id identity.Identity) []identityField {
 		{"state", id.State},
 		{"zip", id.Zip},
 		{"dob", id.DOB.Format("2006-01-02")},
-		{"password", id.Password},
 	}
 }
 

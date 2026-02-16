@@ -16,6 +16,5 @@ type Identity struct {
 	State     string    `json:"state"`
 	Zip       string    `json:"zip"`
 	DOB       time.Time `json:"dob"`
-	Password  string    `json:"password"`
 	CreatedAt time.Time `json:"created_at"`
 }

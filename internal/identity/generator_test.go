@@ -29,7 +29,6 @@ func TestGenerate(t *testing.T) {
 		{"State length", func() bool { return len(id.State) == 2 }},
 		{"Zip length", func() bool { return len(id.Zip) == 5 }},
 		{"DOB non-zero", func() bool { return !id.DOB.IsZero() }},
-		{"Password non-empty", func() bool { return id.Password != "" }},
 		{"CreatedAt non-zero", func() bool { return !id.CreatedAt.IsZero() }},
 	}
 

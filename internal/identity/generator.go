@@ -10,8 +10,6 @@ import (
 	"github.com/zarlcorp/core/pkg/zcrypto"
 )
 
-const defaultPasswordLen = 20
-
 // Generator produces random identity data using crypto/rand.
 type Generator struct{}
 
@@ -34,7 +32,6 @@ func (g *Generator) Generate() Identity {
 		State:     pick(states),
 		Zip:       g.zip(),
 		DOB:       g.dob(),
-		Password:  g.Password(defaultPasswordLen),
 		CreatedAt: time.Now(),
 	}
 }

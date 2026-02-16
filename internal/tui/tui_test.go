@@ -40,7 +40,6 @@ func testIdentity() identity.Identity {
 		State:     "OR",
 		Zip:       "97201",
 		DOB:       time.Date(1990, 6, 15, 0, 0, 0, 0, time.UTC),
-		Password:  "s3cret!Pass",
 		CreatedAt: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
 	}
 }
@@ -296,7 +295,7 @@ func TestGenerateViewShowsFields(t *testing.T) {
 	m := newGenerateModel(id)
 	view := m.View()
 
-	checks := []string{id.FirstName, id.Email, id.Phone, id.Password, id.City}
+	checks := []string{id.FirstName, id.Email, id.Phone, id.City}
 	for _, c := range checks {
 		if !strings.Contains(view, c) {
 			t.Errorf("view should contain %q", c)
@@ -770,8 +769,8 @@ func TestIdentityFields(t *testing.T) {
 	id := testIdentity()
 	fields := identityFields(id)
 
-	if len(fields) != 10 {
-		t.Fatalf("fields length = %d, want 10", len(fields))
+	if len(fields) != 9 {
+		t.Fatalf("fields length = %d, want 9", len(fields))
 	}
 
 	// spot check

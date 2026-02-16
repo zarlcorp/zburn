@@ -91,7 +91,7 @@ printf "test: identity --json\n"
 IDENTITY_OUT=$("$BINARY" identity --json 2>&1)
 
 FIELDS_OK=true
-for field in id first_name last_name email phone street city state zip dob password; do
+for field in id first_name last_name email phone street city state zip dob; do
   if ! echo "$IDENTITY_OUT" | python3 -c "import sys,json; d=json.load(sys.stdin); assert '$field' in d" 2>/dev/null; then
     FIELDS_OK=false
     fail "identity --json missing field '$field'"

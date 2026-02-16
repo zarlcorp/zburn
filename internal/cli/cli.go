@@ -205,7 +205,6 @@ func printIdentity(id identity.Identity) {
 	fmt.Printf("  phone:    %s\n", id.Phone)
 	fmt.Printf("  address:  %s, %s, %s %s\n", id.Street, id.City, id.State, id.Zip)
 	fmt.Printf("  dob:      %s\n", id.DOB.Format("2006-01-02"))
-	fmt.Printf("  password: %s\n", id.Password)
 }
 
 func printJSON(v any) {
