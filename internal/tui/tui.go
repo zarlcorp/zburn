@@ -553,7 +553,7 @@ func (m Model) handleSaveNamecheap(s NamecheapSettings) (tea.Model, tea.Cmd) {
 	}
 
 	m.ncConfig = s
-	m.settingsNamecheap.flash = "saved"
+	// flash is already set by the namecheap model's validate handler
 	return m, clearFlashAfter()
 }
 

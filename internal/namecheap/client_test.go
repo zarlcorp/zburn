@@ -59,18 +59,41 @@ const apiMultiErrorResponse = `<?xml version="1.0" encoding="utf-8"?>
   <CommandResponse />
 </ApiResponse>`
 
+const listDomainsOK = `<?xml version="1.0" encoding="utf-8"?>
+<ApiResponse Status="OK" xmlns="http://api.namecheap.com/xml.response">
+  <Errors />
+  <RequestedCommand>namecheap.domains.getList</RequestedCommand>
+  <CommandResponse Type="namecheap.domains.getList">
+    <DomainGetListResult>
+      <Domain ID="123" Name="example.com" User="testuser" Created="01/01/2020" Expires="01/01/2030" IsExpired="false" IsLocked="false" AutoRenew="true" WhoisGuard="ENABLED" />
+      <Domain ID="456" Name="other.io" User="testuser" Created="06/15/2021" Expires="06/15/2031" IsExpired="false" IsLocked="false" AutoRenew="true" WhoisGuard="ENABLED" />
+    </DomainGetListResult>
+  </CommandResponse>
+  <Server>SERVER</Server>
+  <GMTTimeDifference>--5:00</GMTTimeDifference>
+  <ExecutionTime>0.3</ExecutionTime>
+</ApiResponse>`
+
+const listDomainsEmpty = `<?xml version="1.0" encoding="utf-8"?>
+<ApiResponse Status="OK" xmlns="http://api.namecheap.com/xml.response">
+  <Errors />
+  <CommandResponse Type="namecheap.domains.getList">
+    <DomainGetListResult>
+    </DomainGetListResult>
+  </CommandResponse>
+</ApiResponse>`
+
 func testConfig() Config {
 	return Config{
-		APIUser:  "testuser",
-		APIKey:   "testkey",
 		Username: "testuser",
-		ClientIP: "1.2.3.4",
+		APIKey:   "testkey",
 	}
 }
 
 func newTestClient(url string) *Client {
 	c := NewClient(testConfig())
 	c.baseURL = url
+	c.clientIP = "1.2.3.4" // pre-cache to avoid real DNS lookups
 	return c
 }
 
@@ -343,7 +366,7 @@ func TestMalformedXML(t *testing.T) {
 }
 
 func TestInvalidDomain(t *testing.T) {
-	c := NewClient(testConfig())
+	c := newTestClient("http://unused")
 
 	tests := []string{
 		"nodot",
@@ -426,6 +449,99 @@ func TestContextCancellation(t *testing.T) {
 	_, err := c.GetForwarding(ctx, "example.com")
 	if err == nil {
 		t.Fatal("expected error for cancelled context")
+	}
+}
+
+func TestListDomains(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assertQueryParam(t, r, "Command", "namecheap.domains.getList")
+		assertQueryParam(t, r, "ApiUser", "testuser")
+		assertQueryParam(t, r, "UserName", "testuser")
+		assertQueryParam(t, r, "ApiKey", "testkey")
+		assertQueryParam(t, r, "ClientIp", "1.2.3.4")
+
+		w.Header().Set("Content-Type", "text/xml")
+		w.Write([]byte(listDomainsOK))
+	}))
+	defer srv.Close()
+
+	c := newTestClient(srv.URL)
+	domains, err := c.ListDomains(context.Background())
+	if err != nil {
+		t.Fatalf("list domains: %v", err)
+	}
+
+	if len(domains) != 2 {
+		t.Fatalf("domains count: got %d, want 2", len(domains))
+	}
+
+	want := []string{"example.com", "other.io"}
+	for i, d := range domains {
+		if d != want[i] {
+			t.Errorf("domains[%d]: got %q, want %q", i, d, want[i])
+		}
+	}
+}
+
+func TestListDomainsEmpty(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Write([]byte(listDomainsEmpty))
+	}))
+	defer srv.Close()
+
+	c := newTestClient(srv.URL)
+	domains, err := c.ListDomains(context.Background())
+	if err != nil {
+		t.Fatalf("list domains: %v", err)
+	}
+
+	if len(domains) != 0 {
+		t.Fatalf("domains count: got %d, want 0", len(domains))
+	}
+}
+
+func TestListDomainsAPIError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Write([]byte(apiErrorResponse))
+	}))
+	defer srv.Close()
+
+	c := newTestClient(srv.URL)
+	_, err := c.ListDomains(context.Background())
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "Domain not found") {
+		t.Errorf("error: got %q, want contains 'Domain not found'", err.Error())
+	}
+}
+
+func TestClientIPCaching(t *testing.T) {
+	c := NewClient(testConfig())
+	c.clientIP = "10.20.30.40"
+
+	// resolveIP should return the cached value
+	ip, err := c.resolveIP(context.Background())
+	if err != nil {
+		t.Fatalf("resolve ip: %v", err)
+	}
+	if ip != "10.20.30.40" {
+		t.Errorf("ip: got %q, want %q", ip, "10.20.30.40")
+	}
+}
+
+func TestBaseParamsSendsUsernameAsBoth(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assertQueryParam(t, r, "ApiUser", "testuser")
+		assertQueryParam(t, r, "UserName", "testuser")
+		w.Write([]byte(listDomainsOK))
+	}))
+	defer srv.Close()
+
+	c := newTestClient(srv.URL)
+	_, err := c.ListDomains(context.Background())
+	if err != nil {
+		t.Fatalf("list domains: %v", err)
 	}
 }
 

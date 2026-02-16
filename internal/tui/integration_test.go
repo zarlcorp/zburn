@@ -291,11 +291,9 @@ func TestIntegrationNamecheapSettingsPersist(t *testing.T) {
 	m := setupModel(t)
 
 	nc := NamecheapSettings{
-		APIUser:  "myuser",
-		APIKey:   "mykey",
-		Username: "myname",
-		ClientIP: "10.0.0.1",
-		Domains:  []string{"foo.com", "bar.io"},
+		Username:      "myuser",
+		APIKey:        "mykey",
+		CachedDomains: []string{"foo.com", "bar.io"},
 	}
 
 	// save namecheap settings
@@ -311,17 +309,17 @@ func TestIntegrationNamecheapSettingsPersist(t *testing.T) {
 	if !m.NamecheapConfigured() {
 		t.Error("namecheap should be configured after reload")
 	}
-	if m.ncConfig.APIUser != "myuser" {
-		t.Errorf("APIUser = %q, want %q", m.ncConfig.APIUser, "myuser")
+	if m.ncConfig.Username != "myuser" {
+		t.Errorf("Username = %q, want %q", m.ncConfig.Username, "myuser")
 	}
 	if m.ncConfig.APIKey != "mykey" {
 		t.Errorf("APIKey = %q, want %q", m.ncConfig.APIKey, "mykey")
 	}
-	if len(m.ncConfig.Domains) != 2 {
-		t.Fatalf("Domains = %d, want 2", len(m.ncConfig.Domains))
+	if len(m.ncConfig.CachedDomains) != 2 {
+		t.Fatalf("CachedDomains = %d, want 2", len(m.ncConfig.CachedDomains))
 	}
-	if m.ncConfig.Domains[0] != "foo.com" || m.ncConfig.Domains[1] != "bar.io" {
-		t.Errorf("Domains = %v, want [foo.com bar.io]", m.ncConfig.Domains)
+	if m.ncConfig.CachedDomains[0] != "foo.com" || m.ncConfig.CachedDomains[1] != "bar.io" {
+		t.Errorf("CachedDomains = %v, want [foo.com bar.io]", m.ncConfig.CachedDomains)
 	}
 }
 
@@ -434,7 +432,7 @@ func TestIntegrationFeatureGatingMatchesStoredState(t *testing.T) {
 
 	// configure namecheap only
 	m = processMsg(t, m, saveNamecheapMsg{settings: NamecheapSettings{
-		APIUser: "u", APIKey: "k",
+		Username: "u", APIKey: "k",
 	}})
 
 	if !m.NamecheapConfigured() {

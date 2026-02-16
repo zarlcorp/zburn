@@ -14,13 +14,11 @@ type configEnvelope struct {
 	Data json.RawMessage `json:"data"`
 }
 
-// NamecheapSettings holds Namecheap credentials and associated domains.
+// NamecheapSettings holds Namecheap credentials and cached domain list.
 type NamecheapSettings struct {
-	APIUser  string   `json:"api_user"`
-	APIKey   string   `json:"api_key"`
-	Username string   `json:"username"`
-	ClientIP string   `json:"client_ip"`
-	Domains  []string `json:"domains"`
+	Username      string   `json:"username"`
+	APIKey        string   `json:"api_key"`
+	CachedDomains []string `json:"cached_domains"`
 }
 
 // GmailSettings holds Gmail OAuth2 credentials and tokens.
@@ -38,7 +36,7 @@ type TwilioSettings struct {
 }
 
 func (s NamecheapSettings) Configured() bool {
-	return s.APIKey != "" && s.APIUser != ""
+	return s.Username != "" && s.APIKey != ""
 }
 
 func (s GmailSettings) Configured() bool {
@@ -52,10 +50,8 @@ func (s TwilioSettings) Configured() bool {
 // NamecheapConfig converts settings to a namecheap.Config for API use.
 func (s NamecheapSettings) NamecheapConfig() namecheap.Config {
 	return namecheap.Config{
-		APIUser:  s.APIUser,
-		APIKey:   s.APIKey,
 		Username: s.Username,
-		ClientIP: s.ClientIP,
+		APIKey:   s.APIKey,
 	}
 }
 

@@ -13,6 +13,7 @@ import (
 	"github.com/zarlcorp/core/pkg/zstore"
 	"github.com/zarlcorp/zburn/internal/gmail"
 	"github.com/zarlcorp/zburn/internal/identity"
+	"github.com/zarlcorp/zburn/internal/namecheap"
 )
 
 // config round-trip tests
@@ -36,11 +37,9 @@ func TestNamecheapSettingsRoundTrip(t *testing.T) {
 	}
 
 	want := NamecheapSettings{
-		APIUser:  "user1",
-		APIKey:   "key1",
-		Username: "name1",
-		ClientIP: "1.2.3.4",
-		Domains:  []string{"foo.com", "bar.io"},
+		Username:      "user1",
+		APIKey:        "key1",
+		CachedDomains: []string{"foo.com", "bar.io"},
 	}
 
 	if err := saveConfig(col, "namecheap", want); err != nil {
@@ -48,24 +47,18 @@ func TestNamecheapSettingsRoundTrip(t *testing.T) {
 	}
 
 	got := loadConfig[NamecheapSettings](col, "namecheap")
-	if got.APIUser != want.APIUser {
-		t.Errorf("APIUser = %q, want %q", got.APIUser, want.APIUser)
+	if got.Username != want.Username {
+		t.Errorf("Username = %q, want %q", got.Username, want.Username)
 	}
 	if got.APIKey != want.APIKey {
 		t.Errorf("APIKey = %q, want %q", got.APIKey, want.APIKey)
 	}
-	if got.Username != want.Username {
-		t.Errorf("Username = %q, want %q", got.Username, want.Username)
+	if len(got.CachedDomains) != len(want.CachedDomains) {
+		t.Fatalf("CachedDomains length = %d, want %d", len(got.CachedDomains), len(want.CachedDomains))
 	}
-	if got.ClientIP != want.ClientIP {
-		t.Errorf("ClientIP = %q, want %q", got.ClientIP, want.ClientIP)
-	}
-	if len(got.Domains) != len(want.Domains) {
-		t.Fatalf("Domains length = %d, want %d", len(got.Domains), len(want.Domains))
-	}
-	for i := range want.Domains {
-		if got.Domains[i] != want.Domains[i] {
-			t.Errorf("Domains[%d] = %q, want %q", i, got.Domains[i], want.Domains[i])
+	for i := range want.CachedDomains {
+		if got.CachedDomains[i] != want.CachedDomains[i] {
+			t.Errorf("CachedDomains[%d] = %q, want %q", i, got.CachedDomains[i], want.CachedDomains[i])
 		}
 	}
 }
@@ -146,14 +139,14 @@ func TestLoadConfigMissing(t *testing.T) {
 	}
 
 	got := loadConfig[NamecheapSettings](col, "nonexistent")
-	if got.APIUser != "" || got.APIKey != "" {
+	if got.Username != "" || got.APIKey != "" {
 		t.Error("missing config should return zero value")
 	}
 }
 
 func TestLoadConfigNilCollection(t *testing.T) {
 	got := loadConfig[NamecheapSettings](nil, "namecheap")
-	if got.APIUser != "" {
+	if got.Username != "" {
 		t.Error("nil collection should return zero value")
 	}
 }
@@ -167,8 +160,9 @@ func TestNamecheapConfigured(t *testing.T) {
 		want bool
 	}{
 		{"empty", NamecheapSettings{}, false},
-		{"partial", NamecheapSettings{APIUser: "u"}, false},
-		{"full", NamecheapSettings{APIUser: "u", APIKey: "k"}, true},
+		{"partial username", NamecheapSettings{Username: "u"}, false},
+		{"partial key", NamecheapSettings{APIKey: "k"}, false},
+		{"full", NamecheapSettings{Username: "u", APIKey: "k"}, true},
 	}
 
 	for _, tt := range tests {
@@ -229,7 +223,7 @@ func TestSettingsViewShowsItems(t *testing.T) {
 }
 
 func TestSettingsViewShowsStatus(t *testing.T) {
-	nc := NamecheapSettings{APIUser: "u", APIKey: "k"}
+	nc := NamecheapSettings{Username: "u", APIKey: "k"}
 	m := newSettingsModel(nc, GmailSettings{}, TwilioSettings{})
 	view := m.View()
 
@@ -354,28 +348,17 @@ func TestSettingsQuit(t *testing.T) {
 
 func TestNamecheapFormPopulatesFromConfig(t *testing.T) {
 	cfg := NamecheapSettings{
-		APIUser:  "myuser",
-		APIKey:   "mykey",
-		Username: "myname",
-		ClientIP: "1.2.3.4",
-		Domains:  []string{"a.com", "b.io"},
+		Username:      "myuser",
+		APIKey:        "mykey",
+		CachedDomains: []string{"a.com", "b.io"},
 	}
 	m := newNamecheapModel(cfg)
 
-	if m.inputs[ncAPIUser].Value() != "myuser" {
-		t.Errorf("api user = %q, want %q", m.inputs[ncAPIUser].Value(), "myuser")
+	if m.inputs[ncUsername].Value() != "myuser" {
+		t.Errorf("username = %q, want %q", m.inputs[ncUsername].Value(), "myuser")
 	}
 	if m.inputs[ncAPIKey].Value() != "mykey" {
 		t.Errorf("api key = %q, want %q", m.inputs[ncAPIKey].Value(), "mykey")
-	}
-	if m.inputs[ncUsername].Value() != "myname" {
-		t.Errorf("username = %q, want %q", m.inputs[ncUsername].Value(), "myname")
-	}
-	if m.inputs[ncClientIP].Value() != "1.2.3.4" {
-		t.Errorf("client ip = %q, want %q", m.inputs[ncClientIP].Value(), "1.2.3.4")
-	}
-	if !strings.Contains(m.inputs[ncDomains].Value(), "a.com") {
-		t.Error("domains should contain a.com")
 	}
 }
 
@@ -402,41 +385,114 @@ func TestNamecheapFormTabAdvances(t *testing.T) {
 		t.Errorf("focus = %d, want 1", m.focus)
 	}
 
+	// wraps back to 0 (only 2 fields now)
 	m = m.nextField()
-	if m.focus != 2 {
-		t.Errorf("focus = %d, want 2", m.focus)
+	if m.focus != 0 {
+		t.Errorf("focus = %d, want 0 (wrap)", m.focus)
 	}
 }
 
-func TestNamecheapFormSave(t *testing.T) {
+func TestNamecheapFormValidateAndSave(t *testing.T) {
 	m := newNamecheapModel(NamecheapSettings{})
-	m.inputs[ncAPIUser].SetValue("u1")
+	m.inputs[ncUsername].SetValue("u1")
 	m.inputs[ncAPIKey].SetValue("k1")
-	m.inputs[ncUsername].SetValue("n1")
-	m.inputs[ncClientIP].SetValue("5.6.7.8")
-	m.inputs[ncDomains].SetValue("x.com, y.io")
 
-	cmd := m.save()
-	if cmd == nil {
-		t.Fatal("save should produce command")
+	// inject a fake validator that returns domains
+	m.validateFn = func(_ context.Context, cfg namecheap.Config) ([]string, error) {
+		if cfg.Username != "u1" || cfg.APIKey != "k1" {
+			t.Errorf("validate got cfg %+v", cfg)
+		}
+		return []string{"x.com", "y.io"}, nil
 	}
+
+	m, cmd := m.startValidate()
+	if !m.saving {
+		t.Error("should be in saving state")
+	}
+	if cmd == nil {
+		t.Fatal("should produce command")
+	}
+
+	// execute the validation command
 	msg := cmd()
-	save, ok := msg.(saveNamecheapMsg)
+	result, ok := msg.(ncValidateResultMsg)
+	if !ok {
+		t.Fatal("should produce ncValidateResultMsg")
+	}
+
+	// feed result back into model
+	m, cmd = m.Update(result)
+	if m.saving {
+		t.Error("should not be saving after result")
+	}
+	if cmd == nil {
+		t.Fatal("should produce save command")
+	}
+	if !strings.Contains(m.flash, "2 domains found") {
+		t.Errorf("flash = %q, want contains '2 domains found'", m.flash)
+	}
+
+	// execute the save command
+	saveMsg := cmd()
+	save, ok := saveMsg.(saveNamecheapMsg)
 	if !ok {
 		t.Fatal("should emit saveNamecheapMsg")
 	}
 
-	if save.settings.APIUser != "u1" {
-		t.Errorf("APIUser = %q, want %q", save.settings.APIUser, "u1")
+	if save.settings.Username != "u1" {
+		t.Errorf("Username = %q, want %q", save.settings.Username, "u1")
 	}
 	if save.settings.APIKey != "k1" {
 		t.Errorf("APIKey = %q, want %q", save.settings.APIKey, "k1")
 	}
-	if len(save.settings.Domains) != 2 {
-		t.Fatalf("Domains len = %d, want 2", len(save.settings.Domains))
+	if len(save.settings.CachedDomains) != 2 {
+		t.Fatalf("CachedDomains len = %d, want 2", len(save.settings.CachedDomains))
 	}
-	if save.settings.Domains[0] != "x.com" || save.settings.Domains[1] != "y.io" {
-		t.Errorf("Domains = %v, want [x.com y.io]", save.settings.Domains)
+	if save.settings.CachedDomains[0] != "x.com" || save.settings.CachedDomains[1] != "y.io" {
+		t.Errorf("CachedDomains = %v, want [x.com y.io]", save.settings.CachedDomains)
+	}
+}
+
+func TestNamecheapFormValidateError(t *testing.T) {
+	m := newNamecheapModel(NamecheapSettings{})
+	m.inputs[ncUsername].SetValue("u1")
+	m.inputs[ncAPIKey].SetValue("k1")
+
+	m.validateFn = func(_ context.Context, _ namecheap.Config) ([]string, error) {
+		return nil, fmt.Errorf("invalid credentials")
+	}
+
+	m, cmd := m.startValidate()
+	msg := cmd()
+	result := msg.(ncValidateResultMsg)
+
+	m, _ = m.Update(result)
+	if m.saving {
+		t.Error("should not be saving after error")
+	}
+	if !strings.Contains(m.flash, "invalid credentials") {
+		t.Errorf("flash = %q, should contain error", m.flash)
+	}
+}
+
+func TestNamecheapFormEmptyFieldsReject(t *testing.T) {
+	m := newNamecheapModel(NamecheapSettings{})
+	// leave fields empty
+	m, _ = m.startValidate()
+	if m.saving {
+		t.Error("should not be saving with empty fields")
+	}
+	if !strings.Contains(m.flash, "required") {
+		t.Errorf("flash = %q, should mention required", m.flash)
+	}
+}
+
+func TestNamecheapFormSavingBlocksKeys(t *testing.T) {
+	m := newNamecheapModel(NamecheapSettings{})
+	m.saving = true
+	m, cmd := m.Update(keyMsg('q'))
+	if cmd != nil {
+		t.Error("keys should be blocked during saving")
 	}
 }
 
@@ -860,9 +916,9 @@ func TestRootQuitFromSettings(t *testing.T) {
 // conversion tests
 
 func TestNamecheapConfigConversion(t *testing.T) {
-	s := NamecheapSettings{APIUser: "u", APIKey: "k", Username: "n", ClientIP: "1.2.3.4"}
+	s := NamecheapSettings{Username: "u", APIKey: "k"}
 	cfg := s.NamecheapConfig()
-	if cfg.APIUser != "u" || cfg.APIKey != "k" || cfg.Username != "n" || cfg.ClientIP != "1.2.3.4" {
+	if cfg.Username != "u" || cfg.APIKey != "k" {
 		t.Error("conversion should preserve all fields")
 	}
 }
@@ -883,39 +939,10 @@ func TestTwilioConfigConversion(t *testing.T) {
 	}
 }
 
-// parseDomains tests
-
-func TestParseDomains(t *testing.T) {
-	tests := []struct {
-		input string
-		want  []string
-	}{
-		{"", nil},
-		{"a.com", []string{"a.com"}},
-		{"a.com, b.io", []string{"a.com", "b.io"}},
-		{"a.com,b.io,c.org", []string{"a.com", "b.io", "c.org"}},
-		{" a.com , b.io ", []string{"a.com", "b.io"}},
-		{"a.com\nb.io", []string{"a.com", "b.io"}},
-	}
-
-	for _, tt := range tests {
-		got := parseDomains(tt.input)
-		if len(got) != len(tt.want) {
-			t.Errorf("parseDomains(%q) = %v, want %v", tt.input, got, tt.want)
-			continue
-		}
-		for i := range tt.want {
-			if got[i] != tt.want[i] {
-				t.Errorf("parseDomains(%q)[%d] = %q, want %q", tt.input, i, got[i], tt.want[i])
-			}
-		}
-	}
-}
-
 // configEnvelope json tests
 
 func TestConfigEnvelopeJSON(t *testing.T) {
-	want := NamecheapSettings{APIUser: "u", APIKey: "k"}
+	want := NamecheapSettings{Username: "u", APIKey: "k"}
 	data, err := json.Marshal(want)
 	if err != nil {
 		t.Fatal(err)
@@ -937,7 +964,7 @@ func TestConfigEnvelopeJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if got.APIUser != want.APIUser || got.APIKey != want.APIKey {
+	if got.Username != want.Username || got.APIKey != want.APIKey {
 		t.Errorf("round-trip failed: got %+v, want %+v", got, want)
 	}
 }
