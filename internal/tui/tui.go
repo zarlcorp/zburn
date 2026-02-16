@@ -302,7 +302,12 @@ func (m Model) navigate(view viewID) (tea.Model, tea.Cmd) {
 		return m.loadList()
 
 	case viewDetail:
-		// detail is set by viewIdentityMsg, not navigateMsg
+		if m.credentials != nil {
+			count, err := m.countCredentials(m.detail.identity.ID)
+			if err == nil {
+				m.detail.credentialCount = count
+			}
+		}
 		m.active = viewDetail
 		return m, nil
 
