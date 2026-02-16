@@ -3,7 +3,6 @@ package tui
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -28,12 +27,14 @@ type detailModel struct {
 	cursor          int
 	flash           string
 	credentialCount int
+	avatar          string
 }
 
 func newDetailModel(id identity.Identity) detailModel {
 	return detailModel{
 		identity: id,
 		fields:   identityFields(id),
+		avatar:   renderAvatar(),
 	}
 }
 
@@ -121,11 +122,17 @@ func (m detailModel) allFieldsText() string {
 }
 
 func (m detailModel) View() string {
-	title := zstyle.Title.Render("identity " + m.identity.ID)
-	created := zstyle.MutedText.Render(m.identity.CreatedAt.Format(time.RFC3339))
-	s := fmt.Sprintf("\n  %s  %s\n\n", title, created)
+	title := zstyle.Title.Render(m.identity.FirstName + " " + m.identity.LastName)
+	s := fmt.Sprintf("\n  %s\n\n", title)
+
+	if m.avatar != "" {
+		s += "  " + m.avatar + "\n\n"
+	}
 
 	for i, f := range m.fields {
+		if sectionBreaks[i] {
+			s += "\n"
+		}
 		label := zstyle.MutedText.Render(fmt.Sprintf("%-10s", f.label))
 		if i == m.cursor {
 			s += zstyle.ActiveBorder.Render(fmt.Sprintf("  > %s %s", label, f.value)) + "\n"
@@ -137,8 +144,11 @@ func (m detailModel) View() string {
 	s += "\n"
 
 	// credentials section
-	credLabel := fmt.Sprintf("credentials (%d)", m.credentialCount)
-	s += "  " + zstyle.Subtitle.Render(credLabel) + "  " + zstyle.MutedText.Render("w to view") + "\n"
+	if m.credentialCount > 0 {
+		s += "  " + zstyle.MutedText.Render(fmt.Sprintf("(%d) credentials  w to view", m.credentialCount)) + "\n"
+	} else {
+		s += "  " + zstyle.MutedText.Render("no credentials  a to add") + "\n"
+	}
 
 	s += "\n"
 

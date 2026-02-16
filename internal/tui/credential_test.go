@@ -748,8 +748,8 @@ func TestDetailViewShowsCredentialCount(t *testing.T) {
 	m.credentialCount = 3
 	view := m.View()
 
-	if !strings.Contains(view, "credentials (3)") {
-		t.Error("should show credential count")
+	if !strings.Contains(view, "(3) credentials") {
+		t.Error("should show credential count inline")
 	}
 	if !strings.Contains(view, "w to view") {
 		t.Error("should show w shortcut hint")
@@ -760,8 +760,11 @@ func TestDetailViewCredentialCountZero(t *testing.T) {
 	m := newDetailModel(testIdentity())
 	view := m.View()
 
-	if !strings.Contains(view, "credentials (0)") {
-		t.Error("should show zero credential count")
+	if !strings.Contains(view, "no credentials") {
+		t.Error("should show no credentials message")
+	}
+	if !strings.Contains(view, "a to add") {
+		t.Error("should show add hint when no credentials")
 	}
 }
 
