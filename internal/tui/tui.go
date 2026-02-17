@@ -32,6 +32,7 @@ const (
 	viewSettingsGmail
 	viewSettingsTwilio
 	viewBurn
+	viewForwarding
 )
 
 // ExternalServices holds optional integrations for burn cascade.
@@ -69,6 +70,7 @@ type Model struct {
 	settingsNamecheap namecheapModel
 	settingsGmail     gmailModel
 	settingsTwilio    twilioModel
+	forwarding        forwardingModel
 
 	// cached config state
 	ncConfig NamecheapSettings
@@ -165,6 +167,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case cycleDomainMsg:
 		return m.handleCycleDomain()
 
+	case forwardingStatusMsg:
+		m.forwarding, _ = m.forwarding.Update(msg)
+		return m, nil
+
 	case forwardingResultMsg:
 		return m.handleForwardingResult(msg)
 
@@ -204,6 +210,8 @@ func (m Model) View() string {
 		return m.settingsTwilio.View()
 	case viewBurn:
 		return m.burn.View()
+	case viewForwarding:
+		return m.forwarding.View()
 	}
 	return ""
 }
@@ -238,6 +246,8 @@ func (m Model) updateActive(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.settingsTwilio, cmd = m.settingsTwilio.Update(msg)
 	case viewBurn:
 		m.burn, cmd = m.burn.Update(msg)
+	case viewForwarding:
+		m.forwarding, cmd = m.forwarding.Update(msg)
 	}
 
 	return m, cmd
@@ -338,6 +348,16 @@ func (m Model) navigate(view viewID) (tea.Model, tea.Cmd) {
 	case viewSettingsTwilio:
 		m.settingsTwilio = newTwilioModel(m.twConfig)
 		m.active = viewSettingsTwilio
+		return m, tea.ClearScreen
+
+	case viewForwarding:
+		m.forwarding = newForwardingModel(m.ncConfig, m.gmConfig)
+		m.active = viewForwarding
+		// only fetch if both services are configured
+		if m.ncConfig.Configured() && m.gmConfig.Configured() && len(m.ncConfig.CachedDomains) > 0 {
+			m.forwarding.loading = true
+			return m, tea.Batch(tea.ClearScreen, fetchForwardingStatusCmd(m.ncConfig.NamecheapConfig(), m.ncConfig.CachedDomains))
+		}
 		return m, tea.ClearScreen
 
 	case viewBurn:
