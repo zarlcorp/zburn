@@ -294,17 +294,18 @@ func (m Model) navigate(view viewID) (tea.Model, tea.Cmd) {
 	case viewMenu:
 		m.menu = newMenuModel(m.version)
 		m.active = viewMenu
-		return m, nil
+		return m, tea.ClearScreen
 
 	case viewGenerate:
 		domain := m.currentDomain()
 		id := m.gen.Generate(domain)
 		m.generate = newGenerateModel(id, domain)
 		m.active = viewGenerate
-		return m, nil
+		return m, tea.ClearScreen
 
 	case viewList:
-		return m.loadList()
+		m, cmd := m.loadList()
+		return m, tea.Batch(cmd, tea.ClearScreen)
 
 	case viewDetail:
 		if m.credentials != nil {
@@ -314,35 +315,35 @@ func (m Model) navigate(view viewID) (tea.Model, tea.Cmd) {
 			}
 		}
 		m.active = viewDetail
-		return m, nil
+		return m, tea.ClearScreen
 
 	case viewCredentialList:
-		return m.loadCredentialList(m.credentialList.identity)
+		m, cmd := m.loadCredentialList(m.credentialList.identity)
+		return m, tea.Batch(cmd, tea.ClearScreen)
 
 	case viewSettings:
 		m.settings = newSettingsModel(m.ncConfig, m.gmConfig, m.twConfig)
 		m.active = viewSettings
-		return m, nil
+		return m, tea.ClearScreen
 
 	case viewSettingsNamecheap:
 		m.settingsNamecheap = newNamecheapModel(m.ncConfig)
 		m.active = viewSettingsNamecheap
-		return m, nil
+		return m, tea.ClearScreen
 
 	case viewSettingsGmail:
 		m.settingsGmail = newGmailModel(m.gmConfig)
 		m.active = viewSettingsGmail
-		return m, nil
+		return m, tea.ClearScreen
 
 	case viewSettingsTwilio:
 		m.settingsTwilio = newTwilioModel(m.twConfig)
 		m.active = viewSettingsTwilio
-		return m, nil
+		return m, tea.ClearScreen
 
 	case viewBurn:
-		// burn is set by detail view "d" key -> burnStartMsg
 		m.active = viewBurn
-		return m, nil
+		return m, tea.ClearScreen
 	}
 
 	return m, nil
