@@ -1,14 +1,12 @@
 package tui
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/x/ansi/kitty"
 	"github.com/zarlcorp/core/pkg/zstyle"
 	"github.com/zarlcorp/zburn/internal/identity"
 )
@@ -27,7 +25,6 @@ type generateModel struct {
 	flash    string
 	flashAt  time.Time
 	domain   string
-	avatar   string
 }
 
 // saveIdentityMsg requests saving the current identity.
@@ -47,27 +44,7 @@ type flashMsg struct{}
 func newGenerateModel(id identity.Identity, domain string) generateModel {
 	m := generateModel{identity: id, domain: domain}
 	m.fields = identityFields(id)
-	m.avatar = renderAvatar()
 	return m
-}
-
-// renderAvatar pre-renders the avatar PNG as a kitty graphics escape sequence.
-func renderAvatar() string {
-	img := avatarImage()
-	if img == nil {
-		return ""
-	}
-	var buf bytes.Buffer
-	opts := &kitty.Options{
-		Action:       kitty.TransmitAndPut,
-		Transmission: kitty.Direct,
-		Format:       kitty.PNG,
-		Chunk:        true,
-	}
-	if err := kitty.EncodeGraphics(&buf, img, opts); err != nil {
-		return ""
-	}
-	return buf.String()
 }
 
 func identityFields(id identity.Identity) []identityField {
@@ -184,10 +161,6 @@ var sectionBreaks = map[int]bool{3: true, 5: true}
 func (m generateModel) View() string {
 	title := zstyle.Title.Render("generated identity")
 	s := fmt.Sprintf("\n  %s\n\n", title)
-
-	if m.avatar != "" {
-		s += "  " + m.avatar + "\n\n"
-	}
 
 	for i, f := range m.fields {
 		if sectionBreaks[i] {

@@ -27,14 +27,12 @@ type detailModel struct {
 	cursor          int
 	flash           string
 	credentialCount int
-	avatar          string
 }
 
 func newDetailModel(id identity.Identity) detailModel {
 	return detailModel{
 		identity: id,
 		fields:   identityFields(id),
-		avatar:   renderAvatar(),
 	}
 }
 
@@ -124,10 +122,6 @@ func (m detailModel) allFieldsText() string {
 func (m detailModel) View() string {
 	title := zstyle.Title.Render(m.identity.FirstName + " " + m.identity.LastName)
 	s := fmt.Sprintf("\n  %s\n\n", title)
-
-	if m.avatar != "" {
-		s += "  " + m.avatar + "\n\n"
-	}
 
 	for i, f := range m.fields {
 		if sectionBreaks[i] {

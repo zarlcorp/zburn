@@ -852,19 +852,6 @@ func TestIdentityFields(t *testing.T) {
 	}
 }
 
-func TestAvatarDataNotEmpty(t *testing.T) {
-	if len(avatarData) == 0 {
-		t.Error("avatarData should not be empty")
-	}
-}
-
-func TestRenderAvatarProducesPayload(t *testing.T) {
-	s := renderAvatar()
-	if len(s) < 100 {
-		t.Errorf("renderAvatar() returned %d bytes, want > 100 (got %q)", len(s), s)
-	}
-}
-
 // burn view tests
 
 func TestBurnConfirmViewShowsPlan(t *testing.T) {
