@@ -534,16 +534,6 @@ func TestIntegrationBurnNoCredentials(t *testing.T) {
 	}
 }
 
-type fakeForwarder struct {
-	calls []struct{ domain, mailbox string }
-	err   error
-}
-
-func (f *fakeForwarder) RemoveForwarding(_ context.Context, domain, mailbox string) error {
-	f.calls = append(f.calls, struct{ domain, mailbox string }{domain, mailbox})
-	return f.err
-}
-
 type fakeReleaser struct {
 	calls []string
 	err   error
@@ -571,12 +561,9 @@ func TestIntegrationBurnWithExternalServices(t *testing.T) {
 		UpdatedAt:  now,
 	})
 
-	fwd := &fakeForwarder{}
 	rel := &fakeReleaser{}
 	m.SetExternalServices(ExternalServices{
-		Forwarder:   fwd,
-		Releaser:    rel,
-		EmailDomain: "zburn.id",
+		Releaser: rel,
 		PhoneForIdentity: func(identityID string) *burn.PhoneConfig {
 			if identityID == id.ID {
 				return &burn.PhoneConfig{NumberSID: "PN_test", PhoneNumber: "+441234567890"}
@@ -590,14 +577,6 @@ func TestIntegrationBurnWithExternalServices(t *testing.T) {
 
 	if result.HasErrors() {
 		t.Errorf("unexpected errors: %s", result.Summary())
-	}
-
-	// forwarder should have been called
-	if len(fwd.calls) != 1 {
-		t.Fatalf("forwarder calls = %d, want 1", len(fwd.calls))
-	}
-	if fwd.calls[0].domain != "zburn.id" {
-		t.Errorf("forwarder domain = %q, want %q", fwd.calls[0].domain, "zburn.id")
 	}
 
 	// releaser should have been called
@@ -621,12 +600,9 @@ func TestIntegrationBurnWithFailingExternalService(t *testing.T) {
 	id := gen.Generate("")
 	m = saveIdentity(t, m, id)
 
-	fwd := &fakeForwarder{err: fmt.Errorf("network timeout")}
 	rel := &fakeReleaser{err: fmt.Errorf("twilio api error")}
 	m.SetExternalServices(ExternalServices{
-		Forwarder:   fwd,
-		Releaser:    rel,
-		EmailDomain: "zburn.id",
+		Releaser: rel,
 		PhoneForIdentity: func(identityID string) *burn.PhoneConfig {
 			if identityID == id.ID {
 				return &burn.PhoneConfig{NumberSID: "PN_fail", PhoneNumber: "+441234"}
@@ -912,12 +888,9 @@ func TestIntegrationSettingsAffectBurnPlan(t *testing.T) {
 	}
 
 	// configure external services
-	fwd := &fakeForwarder{}
 	rel := &fakeReleaser{}
 	rm.SetExternalServices(ExternalServices{
-		Forwarder:   fwd,
-		Releaser:    rel,
-		EmailDomain: "zburn.id",
+		Releaser: rel,
 		PhoneForIdentity: func(identityID string) *burn.PhoneConfig {
 			if identityID == id.ID {
 				return &burn.PhoneConfig{NumberSID: "PN_plan", PhoneNumber: "+441234"}
@@ -926,10 +899,10 @@ func TestIntegrationSettingsAffectBurnPlan(t *testing.T) {
 		},
 	})
 
-	// burn plan should now include email and phone steps
+	// burn plan should now include phone step
 	result, _ = rm.Update(burnStartMsg{identity: id})
 	rm = result.(Model)
-	if len(rm.burn.plan) != 3 {
-		t.Errorf("plan steps with external = %d, want 3", len(rm.burn.plan))
+	if len(rm.burn.plan) != 2 {
+		t.Errorf("plan steps with external = %d, want 2", len(rm.burn.plan))
 	}
 }

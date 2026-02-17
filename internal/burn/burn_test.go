@@ -48,20 +48,6 @@ func (f *fakeIdentityStore) Delete(id string) error {
 	return nil
 }
 
-type fakeForwarder struct {
-	calls []forwarderCall
-	err   error
-}
-
-type forwarderCall struct {
-	domain, mailbox string
-}
-
-func (f *fakeForwarder) RemoveForwarding(_ context.Context, domain, mailbox string) error {
-	f.calls = append(f.calls, forwarderCall{domain, mailbox})
-	return f.err
-}
-
 type fakeReleaser struct {
 	calls []string
 	err   error
@@ -102,15 +88,12 @@ func testCreds(identityID string, n int) []credential.Credential {
 func TestExecuteFullCascade(t *testing.T) {
 	cs := &fakeCredentialStore{creds: testCreds("id-001", 3)}
 	is := &fakeIdentityStore{}
-	fwd := &fakeForwarder{}
 	rel := &fakeReleaser{}
 
 	req := Request{
 		Identity:    testIdentity(),
 		Credentials: cs,
 		Identities:  is,
-		Email:       &EmailConfig{Domain: "zburn.id", Mailbox: "swiftwolf1234"},
-		Forwarder:   fwd,
 		Phone:       &PhoneConfig{NumberSID: "PN_abc123", PhoneNumber: "+447123456789"},
 		Releaser:    rel,
 	}
@@ -129,10 +112,6 @@ func TestExecuteFullCascade(t *testing.T) {
 		t.Errorf("credential store deletes = %d, want 3", len(cs.deleted))
 	}
 
-	if len(fwd.calls) != 1 || fwd.calls[0].domain != "zburn.id" || fwd.calls[0].mailbox != "swiftwolf1234" {
-		t.Errorf("forwarder calls = %v, want [{zburn.id swiftwolf1234}]", fwd.calls)
-	}
-
 	if len(rel.calls) != 1 || rel.calls[0] != "PN_abc123" {
 		t.Errorf("releaser calls = %v, want [PN_abc123]", rel.calls)
 	}
@@ -141,8 +120,8 @@ func TestExecuteFullCascade(t *testing.T) {
 		t.Errorf("identity deletes = %v, want [id-001]", is.deleted)
 	}
 
-	if len(result.Steps) != 4 {
-		t.Errorf("steps = %d, want 4", len(result.Steps))
+	if len(result.Steps) != 3 {
+		t.Errorf("steps = %d, want 3", len(result.Steps))
 	}
 }
 
@@ -192,41 +171,6 @@ func TestExecuteNoMatchingCredentials(t *testing.T) {
 
 	if result.CredentialsCount != 0 {
 		t.Errorf("credentials deleted = %d, want 0", result.CredentialsCount)
-	}
-}
-
-func TestExecuteEmailFailureContinues(t *testing.T) {
-	cs := &fakeCredentialStore{creds: testCreds("id-001", 1)}
-	is := &fakeIdentityStore{}
-	fwd := &fakeForwarder{err: fmt.Errorf("network timeout")}
-
-	req := Request{
-		Identity:    testIdentity(),
-		Credentials: cs,
-		Identities:  is,
-		Email:       &EmailConfig{Domain: "zburn.id", Mailbox: "swiftwolf1234"},
-		Forwarder:   fwd,
-	}
-
-	result := Execute(context.Background(), req)
-
-	if !result.HasErrors() {
-		t.Error("should have errors when email forwarding fails")
-	}
-
-	// credentials should still be deleted
-	if result.CredentialsCount != 1 {
-		t.Errorf("credentials deleted = %d, want 1", result.CredentialsCount)
-	}
-
-	// identity should still be deleted
-	if len(is.deleted) != 1 {
-		t.Errorf("identity deletes = %d, want 1", len(is.deleted))
-	}
-
-	// summary should mention the failure
-	if !strings.Contains(result.Summary(), "network timeout") {
-		t.Errorf("summary should contain error: %s", result.Summary())
 	}
 }
 
@@ -334,15 +278,12 @@ func TestExecuteIdentityDeleteError(t *testing.T) {
 func TestExecuteAllFailures(t *testing.T) {
 	cs := &fakeCredentialStore{listErr: fmt.Errorf("store error")}
 	is := &fakeIdentityStore{delErr: fmt.Errorf("identity error")}
-	fwd := &fakeForwarder{err: fmt.Errorf("email error")}
 	rel := &fakeReleaser{err: fmt.Errorf("phone error")}
 
 	req := Request{
 		Identity:    testIdentity(),
 		Credentials: cs,
 		Identities:  is,
-		Email:       &EmailConfig{Domain: "zburn.id", Mailbox: "test"},
-		Forwarder:   fwd,
 		Phone:       &PhoneConfig{NumberSID: "PN_x", PhoneNumber: "+441234"},
 		Releaser:    rel,
 	}
@@ -353,9 +294,9 @@ func TestExecuteAllFailures(t *testing.T) {
 		t.Error("should have errors")
 	}
 
-	// all 4 steps should be attempted
-	if len(result.Steps) != 4 {
-		t.Errorf("steps = %d, want 4", len(result.Steps))
+	// all 3 steps should be attempted
+	if len(result.Steps) != 3 {
+		t.Errorf("steps = %d, want 3", len(result.Steps))
 	}
 
 	// every step should have an error
@@ -373,34 +314,27 @@ func TestExecuteAllFailures(t *testing.T) {
 
 func TestPlanFullConfig(t *testing.T) {
 	cs := &fakeCredentialStore{creds: testCreds("id-001", 3)}
-	fwd := &fakeForwarder{}
 	rel := &fakeReleaser{}
 
 	req := Request{
 		Identity:    testIdentity(),
 		Credentials: cs,
-		Email:       &EmailConfig{Domain: "zburn.id", Mailbox: "swiftwolf1234"},
-		Forwarder:   fwd,
 		Phone:       &PhoneConfig{NumberSID: "PN_abc", PhoneNumber: "+447123456789"},
 		Releaser:    rel,
 	}
 
 	steps := Plan(req)
 
-	if len(steps) != 3 {
-		t.Fatalf("plan steps = %d, want 3", len(steps))
+	if len(steps) != 2 {
+		t.Fatalf("plan steps = %d, want 2", len(steps))
 	}
 
 	if !strings.Contains(steps[0], "credentials (3)") {
 		t.Errorf("step 0 = %q, want credentials count", steps[0])
 	}
 
-	if !strings.Contains(steps[1], "swiftwolf1234@zburn.id") {
-		t.Errorf("step 1 = %q, want email address", steps[1])
-	}
-
-	if !strings.Contains(steps[2], "+447123456789") {
-		t.Errorf("step 2 = %q, want phone number", steps[2])
+	if !strings.Contains(steps[1], "+447123456789") {
+		t.Errorf("step 1 = %q, want phone number", steps[1])
 	}
 }
 
@@ -449,7 +383,6 @@ func TestResultSummaryNoErrors(t *testing.T) {
 		CredentialsCount: 3,
 		Steps: []StepStatus{
 			{Description: "deleted 3 credentials"},
-			{Description: "removed email forwarding for test@zburn.id"},
 			{Description: "deleted identity"},
 		},
 	}
@@ -468,7 +401,7 @@ func TestResultSummaryWithErrors(t *testing.T) {
 		Name: "Jane Doe",
 		Steps: []StepStatus{
 			{Description: "deleted 0 credentials"},
-			{Description: "email forwarding removal for test@zburn.id", Err: fmt.Errorf("timeout")},
+			{Description: "release phone number +441234", Err: fmt.Errorf("timeout")},
 			{Description: "deleted identity"},
 		},
 	}
