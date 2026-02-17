@@ -334,6 +334,7 @@ func TestIntegrationGmailSettingsPersist(t *testing.T) {
 			RefreshToken: "refresh",
 			Expiry:       time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		},
+		Email: "user@gmail.com",
 	}
 
 	m = processMsg(t, m, saveGmailMsg{settings: gm})
@@ -353,6 +354,9 @@ func TestIntegrationGmailSettingsPersist(t *testing.T) {
 	}
 	if m.gmConfig.Token == nil || m.gmConfig.Token.RefreshToken != "refresh" {
 		t.Errorf("Token.RefreshToken = %v, want %q", m.gmConfig.Token, "refresh")
+	}
+	if m.gmConfig.Email != "user@gmail.com" {
+		t.Errorf("Email = %q, want %q", m.gmConfig.Email, "user@gmail.com")
 	}
 }
 
@@ -394,6 +398,7 @@ func TestIntegrationGmailDisconnect(t *testing.T) {
 		ClientID:     "id",
 		ClientSecret: "secret",
 		Token:        &gmail.Token{RefreshToken: "rt"},
+		Email:        "user@gmail.com",
 	}
 	m = processMsg(t, m, saveGmailMsg{settings: gm})
 
