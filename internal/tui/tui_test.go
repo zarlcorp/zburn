@@ -858,7 +858,7 @@ func TestBurnConfirmViewShowsPlan(t *testing.T) {
 	id := testIdentity()
 	plan := []string{
 		"delete all credentials (3)",
-		"remove email forwarding for jane@zburn.id",
+		"release phone number +447123456789",
 	}
 	m := newBurnModel(id, plan)
 	view := m.View()
@@ -869,8 +869,8 @@ func TestBurnConfirmViewShowsPlan(t *testing.T) {
 	if !strings.Contains(view, "credentials (3)") {
 		t.Error("should show credential count")
 	}
-	if !strings.Contains(view, "jane@zburn.id") {
-		t.Error("should show email forwarding")
+	if !strings.Contains(view, "+447123456789") {
+		t.Error("should show phone number")
 	}
 	if !strings.Contains(view, "cannot be undone") {
 		t.Error("should show warning")
@@ -986,30 +986,6 @@ func TestBurnResultMsg(t *testing.T) {
 	}
 	if m.result.Name != "Jane Doe" {
 		t.Errorf("result name = %q, want %q", m.result.Name, "Jane Doe")
-	}
-}
-
-// splitEmail tests
-
-func TestSplitEmail(t *testing.T) {
-	tests := []struct {
-		email   string
-		mailbox string
-		domain  string
-	}{
-		{"jane@zburn.id", "jane", "zburn.id"},
-		{"swift.wolf@example.com", "swift.wolf", "example.com"},
-		{"noat", "", ""},
-		{"", "", ""},
-		{"@domain.com", "", "domain.com"},
-	}
-
-	for _, tt := range tests {
-		m, d := splitEmail(tt.email)
-		if m != tt.mailbox || d != tt.domain {
-			t.Errorf("splitEmail(%q) = (%q, %q), want (%q, %q)",
-				tt.email, m, d, tt.mailbox, tt.domain)
-		}
 	}
 }
 

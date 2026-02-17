@@ -21,20 +21,9 @@ type IdentityStore interface {
 	Delete(id string) error
 }
 
-// EmailForwarder removes email forwarding rules.
-type EmailForwarder interface {
-	RemoveForwarding(ctx context.Context, domain, mailbox string) error
-}
-
 // PhoneReleaser releases provisioned phone numbers.
 type PhoneReleaser interface {
 	ReleaseNumber(ctx context.Context, numberSID string) error
-}
-
-// EmailConfig holds forwarding details for an identity.
-type EmailConfig struct {
-	Domain  string // e.g. "zburn.id"
-	Mailbox string // e.g. "swiftwolf1234"
 }
 
 // PhoneConfig holds provisioned phone details for an identity.
@@ -48,10 +37,8 @@ type Request struct {
 	Identity    identity.Identity
 	Credentials CredentialStore
 	Identities  IdentityStore
-	Email       *EmailConfig    // nil if no email forwarding configured
-	Forwarder   EmailForwarder  // nil if namecheap not configured
-	Phone       *PhoneConfig    // nil if no provisioned phone
-	Releaser    PhoneReleaser   // nil if twilio not configured
+	Phone       *PhoneConfig  // nil if no provisioned phone
+	Releaser    PhoneReleaser // nil if twilio not configured
 }
 
 // StepStatus records the outcome of one cascade step.
@@ -113,10 +100,6 @@ func Plan(req Request) []string {
 		steps = append(steps, "delete all credentials")
 	}
 
-	if req.Forwarder != nil && req.Email != nil {
-		steps = append(steps, fmt.Sprintf("remove email forwarding for %s@%s", req.Email.Mailbox, req.Email.Domain))
-	}
-
 	if req.Releaser != nil && req.Phone != nil {
 		steps = append(steps, fmt.Sprintf("release phone number %s", req.Phone.PhoneNumber))
 	}
@@ -134,17 +117,12 @@ func Execute(ctx context.Context, req Request) Result {
 	// 1. delete credentials
 	result.deleteCredentials(req)
 
-	// 2. remove email forwarding
-	if req.Forwarder != nil && req.Email != nil {
-		result.removeEmail(ctx, req)
-	}
-
-	// 3. release phone number
+	// 2. release phone number
 	if req.Releaser != nil && req.Phone != nil {
 		result.releasePhone(ctx, req)
 	}
 
-	// 4. delete identity
+	// 3. delete identity
 	result.deleteIdentity(req)
 
 	return result
@@ -189,21 +167,6 @@ func (r *Result) deleteCredentials(req Request) {
 
 	r.Steps = append(r.Steps, StepStatus{
 		Description: fmt.Sprintf("deleted %d credentials", deleted),
-	})
-}
-
-func (r *Result) removeEmail(ctx context.Context, req Request) {
-	addr := req.Email.Mailbox + "@" + req.Email.Domain
-	err := req.Forwarder.RemoveForwarding(ctx, req.Email.Domain, req.Email.Mailbox)
-	if err != nil {
-		r.Steps = append(r.Steps, StepStatus{
-			Description: fmt.Sprintf("email forwarding removal for %s", addr),
-			Err:         err,
-		})
-		return
-	}
-	r.Steps = append(r.Steps, StepStatus{
-		Description: fmt.Sprintf("removed email forwarding for %s", addr),
 	})
 }
 

@@ -36,11 +36,7 @@ const (
 
 // ExternalServices holds optional integrations for burn cascade.
 type ExternalServices struct {
-	Forwarder burn.EmailForwarder
-	Releaser  burn.PhoneReleaser
-	// EmailDomain is the domain used for email forwarding (e.g. "zburn.id").
-	// Empty means no email forwarding is configured.
-	EmailDomain string
+	Releaser burn.PhoneReleaser
 	// PhoneForIdentity returns provisioned phone config for an identity, or nil.
 	PhoneForIdentity func(identityID string) *burn.PhoneConfig
 }
@@ -647,15 +643,6 @@ func (m Model) buildBurnRequest(id identity.Identity) burn.Request {
 		Identities:  identityStoreOrEmpty(m.identities),
 	}
 
-	// email forwarding — configured when we have a forwarder and a domain
-	if m.external.Forwarder != nil && m.external.EmailDomain != "" {
-		mailbox, domain := splitEmail(id.Email)
-		if mailbox != "" && domain == m.external.EmailDomain {
-			req.Email = &burn.EmailConfig{Domain: domain, Mailbox: mailbox}
-			req.Forwarder = m.external.Forwarder
-		}
-	}
-
 	// phone release — configured when we have a releaser and a lookup func
 	if m.external.Releaser != nil && m.external.PhoneForIdentity != nil {
 		if phone := m.external.PhoneForIdentity(id.ID); phone != nil {
@@ -665,16 +652,6 @@ func (m Model) buildBurnRequest(id identity.Identity) burn.Request {
 	}
 
 	return req
-}
-
-// splitEmail splits an email address into mailbox and domain.
-func splitEmail(email string) (mailbox, domain string) {
-	for i := len(email) - 1; i >= 0; i-- {
-		if email[i] == '@' {
-			return email[:i], email[i+1:]
-		}
-	}
-	return "", ""
 }
 
 // credentialStoreOrEmpty returns the collection as a burn.CredentialStore,
