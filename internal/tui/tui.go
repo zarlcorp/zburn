@@ -165,6 +165,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case cycleDomainMsg:
 		return m.handleCycleDomain()
 
+	case forwardingResultMsg:
+		return m.handleForwardingResult(msg)
+
 	case burnResultMsg:
 		m.burn, _ = m.burn.Update(msg)
 		return m, clearFlashAfter3s()
@@ -563,8 +566,15 @@ func (m Model) handleSaveNamecheap(s NamecheapSettings) (tea.Model, tea.Cmd) {
 	m.ncConfig = s
 	m.domains = s.CachedDomains
 	m.domainIdx = 0
-	// flash is already set by the namecheap model's validate handler
-	return m, clearFlashAfter()
+
+	cmds := []tea.Cmd{clearFlashAfter()}
+
+	// trigger catch-all forwarding if Gmail is already configured
+	if m.gmConfig.Configured() && len(s.CachedDomains) > 0 {
+		cmds = append(cmds, forwardingCmd(s.NamecheapConfig(), s.CachedDomains, m.gmConfig.Email))
+	}
+
+	return m, tea.Batch(cmds...)
 }
 
 func (m Model) handleSaveGmail(s GmailSettings) (tea.Model, tea.Cmd) {
@@ -576,7 +586,15 @@ func (m Model) handleSaveGmail(s GmailSettings) (tea.Model, tea.Cmd) {
 	m.gmConfig = s
 	m.settingsGmail.current = s
 	m.settingsGmail.flash = "saved"
-	return m, clearFlashAfter()
+
+	cmds := []tea.Cmd{clearFlashAfter()}
+
+	// trigger catch-all forwarding if Namecheap is already configured
+	if m.ncConfig.Configured() && len(m.ncConfig.CachedDomains) > 0 && s.Email != "" {
+		cmds = append(cmds, forwardingCmd(m.ncConfig.NamecheapConfig(), m.ncConfig.CachedDomains, s.Email))
+	}
+
+	return m, tea.Batch(cmds...)
 }
 
 func (m Model) handleSaveTwilio(s TwilioSettings) (tea.Model, tea.Cmd) {
@@ -587,6 +605,21 @@ func (m Model) handleSaveTwilio(s TwilioSettings) (tea.Model, tea.Cmd) {
 
 	m.twConfig = s
 	m.settingsTwilio.flash = "saved"
+	return m, clearFlashAfter()
+}
+
+func (m Model) handleForwardingResult(msg forwardingResultMsg) (tea.Model, tea.Cmd) {
+	flash := forwardingFlash(msg)
+
+	switch m.active {
+	case viewSettingsNamecheap:
+		m.settingsNamecheap.flash = flash
+	case viewSettingsGmail:
+		m.settingsGmail.flash = flash
+	case viewSettings:
+		// no flash field on settings menu; ignore
+	}
+
 	return m, clearFlashAfter()
 }
 
