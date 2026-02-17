@@ -181,7 +181,8 @@ func TestGmailConfigured(t *testing.T) {
 		{"empty", GmailSettings{}, false},
 		{"no token", GmailSettings{ClientID: "id", ClientSecret: "s"}, false},
 		{"token no refresh", GmailSettings{Token: &gmail.Token{AccessToken: "a"}}, false},
-		{"configured", GmailSettings{Token: &gmail.Token{RefreshToken: "r"}}, true},
+		{"token no email", GmailSettings{Token: &gmail.Token{RefreshToken: "r"}}, false},
+		{"configured", GmailSettings{Token: &gmail.Token{RefreshToken: "r"}, Email: "u@gmail.com"}, true},
 	}
 
 	for _, tt := range tests {
@@ -540,12 +541,12 @@ func TestGmailFormPopulatesFromConfig(t *testing.T) {
 }
 
 func TestGmailFormShowsConnectedStatus(t *testing.T) {
-	cfg := GmailSettings{Token: &gmail.Token{RefreshToken: "rt"}}
+	cfg := GmailSettings{Token: &gmail.Token{RefreshToken: "rt"}, Email: "user@gmail.com"}
 	m := newGmailModel(cfg)
 	view := m.View()
 
-	if !strings.Contains(view, "connected") {
-		t.Error("should show connected status")
+	if !strings.Contains(view, "connected as user@gmail.com") {
+		t.Error("should show connected status with email")
 	}
 }
 
@@ -571,6 +572,9 @@ func TestGmailOAuthStartsWaiting(t *testing.T) {
 			Expiry:       time.Now().Add(time.Hour),
 		}, nil
 	}
+	m.profileFn = func(_ context.Context, _ string) (string, error) {
+		return "user@gmail.com", nil
+	}
 
 	m, cmd := m.startOAuth()
 	if m.action != gmailActionWaiting {
@@ -591,6 +595,9 @@ func TestGmailOAuthStartsWaiting(t *testing.T) {
 	}
 	if result.token.AccessToken != "at" {
 		t.Errorf("token = %q, want %q", result.token.AccessToken, "at")
+	}
+	if result.email != "user@gmail.com" {
+		t.Errorf("email = %q, want user@gmail.com", result.email)
 	}
 }
 
@@ -650,7 +657,7 @@ func TestGmailEmptyFieldsReject(t *testing.T) {
 }
 
 func TestGmailDisconnect(t *testing.T) {
-	cfg := GmailSettings{Token: &gmail.Token{RefreshToken: "rt"}}
+	cfg := GmailSettings{Token: &gmail.Token{RefreshToken: "rt"}, Email: "user@gmail.com"}
 	m := newGmailModel(cfg)
 	_, cmd := m.Update(specialKey(0)) // dummy — test handleKey directly
 

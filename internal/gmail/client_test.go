@@ -328,3 +328,93 @@ func TestParseDateUnknownFormat(t *testing.T) {
 		t.Errorf("parseDate(unknown) = %v, want zero", d)
 	}
 }
+
+func TestGetProfile(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer test-token" {
+			t.Errorf("auth header = %q, want Bearer test-token", got)
+		}
+
+		if r.URL.Path != "/profile" {
+			t.Errorf("path = %q, want /profile", r.URL.Path)
+		}
+
+		json.NewEncoder(w).Encode(profileResponse{
+			EmailAddress: "user@gmail.com",
+		})
+	}))
+	defer srv.Close()
+
+	c := NewClient("test-token")
+	c.httpClient = srv.Client()
+
+	origBase := apiBase
+	defer func() { setAPIBase(origBase) }()
+	setAPIBase(srv.URL)
+
+	email, err := c.GetProfile(context.Background())
+	if err != nil {
+		t.Fatalf("GetProfile: %v", err)
+	}
+
+	if email != "user@gmail.com" {
+		t.Errorf("email = %q, want user@gmail.com", email)
+	}
+}
+
+func TestGetProfileErrorStatus(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer srv.Close()
+
+	c := NewClient("bad-token")
+	c.httpClient = srv.Client()
+
+	origBase := apiBase
+	defer func() { setAPIBase(origBase) }()
+	setAPIBase(srv.URL)
+
+	_, err := c.GetProfile(context.Background())
+	if err == nil {
+		t.Fatal("expected error for 401 response")
+	}
+}
+
+func TestGetProfileEmptyEmail(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(profileResponse{EmailAddress: ""})
+	}))
+	defer srv.Close()
+
+	c := NewClient("test-token")
+	c.httpClient = srv.Client()
+
+	origBase := apiBase
+	defer func() { setAPIBase(origBase) }()
+	setAPIBase(srv.URL)
+
+	_, err := c.GetProfile(context.Background())
+	if err == nil {
+		t.Fatal("expected error for empty email")
+	}
+}
+
+func TestGetProfileInvalidJSON(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("not json"))
+	}))
+	defer srv.Close()
+
+	c := NewClient("test-token")
+	c.httpClient = srv.Client()
+
+	origBase := apiBase
+	defer func() { setAPIBase(origBase) }()
+	setAPIBase(srv.URL)
+
+	_, err := c.GetProfile(context.Background())
+	if err == nil {
+		t.Fatal("expected error for invalid JSON")
+	}
+}

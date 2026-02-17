@@ -23,9 +23,10 @@ type NamecheapSettings struct {
 
 // GmailSettings holds Gmail OAuth2 credentials and tokens.
 type GmailSettings struct {
-	ClientID     string      `json:"client_id"`
-	ClientSecret string      `json:"client_secret"`
+	ClientID     string       `json:"client_id"`
+	ClientSecret string       `json:"client_secret"`
 	Token        *gmail.Token `json:"token,omitempty"`
+	Email        string       `json:"email,omitempty"`
 }
 
 // TwilioSettings holds Twilio credentials and preferred countries.
@@ -40,7 +41,7 @@ func (s NamecheapSettings) Configured() bool {
 }
 
 func (s GmailSettings) Configured() bool {
-	return s.Token != nil && s.Token.RefreshToken != ""
+	return s.Token != nil && s.Token.RefreshToken != "" && s.Email != ""
 }
 
 func (s TwilioSettings) Configured() bool {

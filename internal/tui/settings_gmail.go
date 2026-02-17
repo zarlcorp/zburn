@@ -41,6 +41,7 @@ type saveGmailMsg struct {
 // gmailOAuthResultMsg carries the result of an OAuth flow.
 type gmailOAuthResultMsg struct {
 	token *gmail.Token
+	email string
 	err   error
 }
 
@@ -57,6 +58,8 @@ type gmailModel struct {
 
 	// authenticateFn allows injecting a test double for the OAuth flow
 	authenticateFn func(ctx context.Context, cfg gmail.OAuthConfig) (*gmail.Token, error)
+	// profileFn allows injecting a test double for the profile fetch
+	profileFn func(ctx context.Context, accessToken string) (string, error)
 }
 
 func newGmailModel(cfg GmailSettings) gmailModel {
@@ -83,6 +86,7 @@ func newGmailModel(cfg GmailSettings) gmailModel {
 		inputs:         inputs,
 		current:        cfg,
 		authenticateFn: gmail.Authenticate,
+		profileFn:      defaultGetProfile,
 	}
 }
 
@@ -115,6 +119,7 @@ func (m gmailModel) Update(msg tea.Msg) (gmailModel, tea.Cmd) {
 		}
 		s := m.buildSettings()
 		s.Token = msg.token
+		s.Email = msg.email
 		return m, func() tea.Msg { return saveGmailMsg{settings: s} }
 
 	case flashMsg:
@@ -178,10 +183,25 @@ func (m gmailModel) startOAuth() (gmailModel, tea.Cmd) {
 	}
 
 	authFn := m.authenticateFn
+	profileFn := m.profileFn
 	return m, func() tea.Msg {
 		tok, err := authFn(context.Background(), cfg)
-		return gmailOAuthResultMsg{token: tok, err: err}
+		if err != nil {
+			return gmailOAuthResultMsg{err: err}
+		}
+
+		email, err := profileFn(context.Background(), tok.AccessToken)
+		if err != nil {
+			return gmailOAuthResultMsg{err: err}
+		}
+
+		return gmailOAuthResultMsg{token: tok, email: email}
 	}
+}
+
+func defaultGetProfile(ctx context.Context, accessToken string) (string, error) {
+	c := gmail.NewClient(accessToken)
+	return c.GetProfile(ctx)
 }
 
 func (m gmailModel) buildSettings() GmailSettings {
@@ -221,7 +241,7 @@ func (m gmailModel) View() string {
 
 	// show connection status
 	if m.current.Configured() {
-		s += "  " + zstyle.StatusOK.Render("connected") + "\n\n"
+		s += "  " + zstyle.StatusOK.Render("connected as "+m.current.Email) + "\n\n"
 	} else {
 		s += "  " + zstyle.MutedText.Render("not connected") + "\n\n"
 	}

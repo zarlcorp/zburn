@@ -75,6 +75,32 @@ type apiPart struct {
 	Parts []apiPart `json:"parts"`
 }
 
+// profileResponse maps the JSON from the users/me/profile endpoint.
+type profileResponse struct {
+	EmailAddress string `json:"emailAddress"`
+}
+
+// GetProfile returns the authenticated user's email address.
+func (c *Client) GetProfile(ctx context.Context) (string, error) {
+	u := apiBase + "/profile"
+
+	body, err := c.doGet(ctx, u)
+	if err != nil {
+		return "", fmt.Errorf("get profile: %w", err)
+	}
+
+	var pr profileResponse
+	if err := json.Unmarshal(body, &pr); err != nil {
+		return "", fmt.Errorf("get profile: decode: %w", err)
+	}
+
+	if pr.EmailAddress == "" {
+		return "", fmt.Errorf("get profile: empty email")
+	}
+
+	return pr.EmailAddress, nil
+}
+
 // ListMessages returns message IDs matching a Gmail search query.
 func (c *Client) ListMessages(ctx context.Context, query string, maxResults int) ([]Message, error) {
 	u := fmt.Sprintf("%s/messages?q=%s&maxResults=%d", apiBase, query, maxResults)

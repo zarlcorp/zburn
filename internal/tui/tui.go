@@ -596,6 +596,7 @@ func (m Model) handleSaveTwilio(s TwilioSettings) (tea.Model, tea.Cmd) {
 
 func (m Model) handleDisconnectGmail() (tea.Model, tea.Cmd) {
 	m.gmConfig.Token = nil
+	m.gmConfig.Email = ""
 	if err := saveConfig(m.configs, "gmail", m.gmConfig); err != nil {
 		m.settingsGmail.flash = "disconnect: " + err.Error()
 		return m, clearFlashAfter()
