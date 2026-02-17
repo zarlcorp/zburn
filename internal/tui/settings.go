@@ -14,6 +14,7 @@ const (
 	settingsNamecheap settingsChoice = iota
 	settingsGmail
 	settingsTwilio
+	settingsForwarding
 	settingsBack
 )
 
@@ -21,6 +22,7 @@ var settingsItems = []string{
 	"namecheap",
 	"gmail",
 	"twilio",
+	"forwarding",
 	"back",
 }
 
@@ -85,6 +87,8 @@ func (m settingsModel) selectItem() tea.Cmd {
 		return func() tea.Msg { return navigateMsg{view: viewSettingsGmail} }
 	case settingsTwilio:
 		return func() tea.Msg { return navigateMsg{view: viewSettingsTwilio} }
+	case settingsForwarding:
+		return func() tea.Msg { return navigateMsg{view: viewForwarding} }
 	case settingsBack:
 		return func() tea.Msg { return navigateMsg{view: viewMenu} }
 	}
@@ -114,8 +118,9 @@ func (m settingsModel) View() string {
 	s := fmt.Sprintf("\n  %s\n\n", title)
 
 	for i, item := range settingsItems {
-		if i == len(settingsItems)-1 {
-			// "back" has no status
+		choice := settingsChoice(i)
+		if choice == settingsForwarding || choice == settingsBack {
+			// no status for non-service items
 			if m.cursor == i {
 				s += zstyle.Highlight.Render(fmt.Sprintf("    > %s", item)) + "\n"
 			} else {
@@ -124,7 +129,7 @@ func (m settingsModel) View() string {
 			continue
 		}
 
-		status := m.statusFor(settingsChoice(i))
+		status := m.statusFor(choice)
 		statusStyle := zstyle.StatusErr
 		if status == "configured" {
 			statusStyle = zstyle.StatusOK

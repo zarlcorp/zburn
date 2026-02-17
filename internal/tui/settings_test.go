@@ -306,7 +306,7 @@ func TestSettingsSelectTwilio(t *testing.T) {
 
 func TestSettingsSelectBack(t *testing.T) {
 	m := newSettingsModel(NamecheapSettings{}, GmailSettings{}, TwilioSettings{})
-	m.cursor = 3 // back
+	m.cursor = 4 // back
 	_, cmd := m.Update(enterKey())
 	if cmd == nil {
 		t.Fatal("enter should produce command")
@@ -974,6 +974,294 @@ func TestConfigEnvelopeJSON(t *testing.T) {
 	if got.Username != want.Username || got.APIKey != want.APIKey {
 		t.Errorf("round-trip failed: got %+v, want %+v", got, want)
 	}
+}
+
+// settings menu forwarding item tests
+
+func TestSettingsSelectForwarding(t *testing.T) {
+	m := newSettingsModel(NamecheapSettings{}, GmailSettings{}, TwilioSettings{})
+	m.cursor = 3 // forwarding
+	_, cmd := m.Update(enterKey())
+	if cmd == nil {
+		t.Fatal("enter should produce command")
+	}
+	msg := cmd()
+	nav, ok := msg.(navigateMsg)
+	if !ok {
+		t.Fatal("should emit navigateMsg")
+	}
+	if nav.view != viewForwarding {
+		t.Errorf("view = %d, want viewForwarding", nav.view)
+	}
+}
+
+func TestSettingsViewShowsForwarding(t *testing.T) {
+	m := newSettingsModel(NamecheapSettings{}, GmailSettings{}, TwilioSettings{})
+	view := m.View()
+	if !strings.Contains(view, "forwarding") {
+		t.Error("settings should contain forwarding item")
+	}
+}
+
+// forwarding view tests
+
+func TestForwardingWarningBothUnconfigured(t *testing.T) {
+	m := newForwardingModel(NamecheapSettings{}, GmailSettings{})
+	if m.warning != "configure namecheap and gmail to enable forwarding" {
+		t.Errorf("warning = %q, want both-unconfigured message", m.warning)
+	}
+	view := m.View()
+	if !strings.Contains(view, "configure namecheap and gmail") {
+		t.Error("view should show both-unconfigured warning")
+	}
+}
+
+func TestForwardingWarningGmailMissing(t *testing.T) {
+	nc := NamecheapSettings{Username: "u", APIKey: "k"}
+	m := newForwardingModel(nc, GmailSettings{})
+	if m.warning != "gmail not connected — forwarding inactive" {
+		t.Errorf("warning = %q, want gmail-missing message", m.warning)
+	}
+}
+
+func TestForwardingWarningNamecheapMissing(t *testing.T) {
+	gm := GmailSettings{Token: &gmail.Token{RefreshToken: "r"}, Email: "u@gmail.com"}
+	m := newForwardingModel(NamecheapSettings{}, gm)
+	if m.warning != "namecheap not connected — no domains" {
+		t.Errorf("warning = %q, want namecheap-missing message", m.warning)
+	}
+}
+
+func TestForwardingNoWarningWhenBothConfigured(t *testing.T) {
+	nc := NamecheapSettings{Username: "u", APIKey: "k"}
+	gm := GmailSettings{Token: &gmail.Token{RefreshToken: "r"}, Email: "u@gmail.com"}
+	m := newForwardingModel(nc, gm)
+	if m.warning != "" {
+		t.Errorf("warning = %q, want empty when both configured", m.warning)
+	}
+}
+
+func TestForwardingLoadingState(t *testing.T) {
+	nc := NamecheapSettings{Username: "u", APIKey: "k"}
+	gm := GmailSettings{Token: &gmail.Token{RefreshToken: "r"}, Email: "u@gmail.com"}
+	m := newForwardingModel(nc, gm)
+	m.loading = true
+	view := m.View()
+	if !strings.Contains(view, "loading...") {
+		t.Error("should show loading state")
+	}
+}
+
+func TestForwardingStatusMsgPopulates(t *testing.T) {
+	nc := NamecheapSettings{Username: "u", APIKey: "k"}
+	gm := GmailSettings{Token: &gmail.Token{RefreshToken: "r"}, Email: "u@gmail.com"}
+	m := newForwardingModel(nc, gm)
+	m.loading = true
+
+	statuses := []domainForwardingStatus{
+		{domain: "alpha.com", rules: []namecheap.ForwardingRule{{Mailbox: "*", ForwardTo: "u@gmail.com"}}},
+		{domain: "zarlcorp.com", excluded: true},
+	}
+	m, _ = m.Update(forwardingStatusMsg{statuses: statuses})
+	if m.loading {
+		t.Error("should not be loading after status msg")
+	}
+	if len(m.statuses) != 2 {
+		t.Fatalf("statuses = %d, want 2", len(m.statuses))
+	}
+}
+
+func TestForwardingViewShowsStatuses(t *testing.T) {
+	nc := NamecheapSettings{Username: "u", APIKey: "k"}
+	gm := GmailSettings{Token: &gmail.Token{RefreshToken: "r"}, Email: "u@gmail.com"}
+	m := newForwardingModel(nc, gm)
+	m.statuses = []domainForwardingStatus{
+		{domain: "alpha.com", rules: []namecheap.ForwardingRule{{Mailbox: "*", ForwardTo: "u@gmail.com"}}},
+		{domain: "bravo.io", rules: nil},
+		{domain: "zarlcorp.com", excluded: true},
+		{domain: "fail.com", err: fmt.Errorf("api error")},
+	}
+	view := m.View()
+
+	if !strings.Contains(view, "alpha.com") {
+		t.Error("should show alpha.com")
+	}
+	if !strings.Contains(view, "u@gmail.com") {
+		t.Error("should show forwarding target")
+	}
+	if !strings.Contains(view, "excluded") {
+		t.Error("should show excluded for org domain")
+	}
+	if !strings.Contains(view, "not configured") {
+		t.Error("should show not configured for domain without rules")
+	}
+	if !strings.Contains(view, "error") {
+		t.Error("should show error for failed domain")
+	}
+}
+
+func TestForwardingEscGoesBack(t *testing.T) {
+	nc := NamecheapSettings{Username: "u", APIKey: "k"}
+	gm := GmailSettings{Token: &gmail.Token{RefreshToken: "r"}, Email: "u@gmail.com"}
+	m := newForwardingModel(nc, gm)
+	_, cmd := m.Update(escKey())
+	if cmd == nil {
+		t.Fatal("esc should produce command")
+	}
+	msg := cmd()
+	nav, ok := msg.(navigateMsg)
+	if !ok {
+		t.Fatal("should emit navigateMsg")
+	}
+	if nav.view != viewSettings {
+		t.Errorf("view = %d, want viewSettings", nav.view)
+	}
+}
+
+func TestForwardingQuit(t *testing.T) {
+	nc := NamecheapSettings{Username: "u", APIKey: "k"}
+	gm := GmailSettings{Token: &gmail.Token{RefreshToken: "r"}, Email: "u@gmail.com"}
+	m := newForwardingModel(nc, gm)
+	_, cmd := m.Update(keyMsg('q'))
+	if cmd == nil {
+		t.Fatal("q should quit")
+	}
+}
+
+func TestForwardingNoDomains(t *testing.T) {
+	nc := NamecheapSettings{Username: "u", APIKey: "k"}
+	gm := GmailSettings{Token: &gmail.Token{RefreshToken: "r"}, Email: "u@gmail.com"}
+	m := newForwardingModel(nc, gm)
+	view := m.View()
+	if !strings.Contains(view, "no domains") {
+		t.Error("should show no domains when statuses empty")
+	}
+}
+
+func TestFetchForwardingStatus(t *testing.T) {
+	getter := &fakeForwardingGetter{
+		rules: map[string][]namecheap.ForwardingRule{
+			"alpha.com": {{Mailbox: "*", ForwardTo: "u@gmail.com"}},
+			"bravo.io":  {},
+		},
+	}
+	domains := []string{"alpha.com", "bravo.io", "zarlcorp.com"}
+	msg := fetchForwardingStatus(context.Background(), getter, domains)
+
+	if len(msg.statuses) != 3 {
+		t.Fatalf("statuses = %d, want 3", len(msg.statuses))
+	}
+
+	// alpha.com has catch-all
+	if catchAllTarget(msg.statuses[0].rules) != "u@gmail.com" {
+		t.Errorf("alpha.com target = %q, want u@gmail.com", catchAllTarget(msg.statuses[0].rules))
+	}
+
+	// bravo.io has no rules
+	if catchAllTarget(msg.statuses[1].rules) != "" {
+		t.Error("bravo.io should have no catch-all target")
+	}
+
+	// zarlcorp.com is excluded
+	if !msg.statuses[2].excluded {
+		t.Error("zarlcorp.com should be excluded")
+	}
+}
+
+func TestFetchForwardingStatusError(t *testing.T) {
+	getter := &fakeForwardingGetter{
+		err: fmt.Errorf("api error"),
+	}
+	domains := []string{"fail.com"}
+	msg := fetchForwardingStatus(context.Background(), getter, domains)
+
+	if msg.statuses[0].err == nil {
+		t.Error("should propagate error")
+	}
+}
+
+func TestCatchAllTarget(t *testing.T) {
+	tests := []struct {
+		name  string
+		rules []namecheap.ForwardingRule
+		want  string
+	}{
+		{"empty", nil, ""},
+		{"no wildcard", []namecheap.ForwardingRule{{Mailbox: "info", ForwardTo: "a@b.com"}}, ""},
+		{"wildcard", []namecheap.ForwardingRule{{Mailbox: "*", ForwardTo: "u@gmail.com"}}, "u@gmail.com"},
+		{"mixed", []namecheap.ForwardingRule{
+			{Mailbox: "info", ForwardTo: "a@b.com"},
+			{Mailbox: "*", ForwardTo: "u@gmail.com"},
+		}, "u@gmail.com"},
+	}
+
+	for _, tt := range tests {
+		got := catchAllTarget(tt.rules)
+		if got != tt.want {
+			t.Errorf("%s: catchAllTarget = %q, want %q", tt.name, got, tt.want)
+		}
+	}
+}
+
+// root model forwarding navigation tests
+
+func TestRootNavigateToForwarding(t *testing.T) {
+	m := New("1.0", t.TempDir(), identity.New(), false)
+	m.active = viewSettings
+
+	result, _ := m.Update(navigateMsg{view: viewForwarding})
+	rm := result.(Model)
+	if rm.active != viewForwarding {
+		t.Errorf("active = %d, want viewForwarding", rm.active)
+	}
+}
+
+func TestRootNavigateToForwardingWithWarning(t *testing.T) {
+	m := New("1.0", t.TempDir(), identity.New(), false)
+	m.active = viewSettings
+	// no configs set
+
+	result, _ := m.Update(navigateMsg{view: viewForwarding})
+	rm := result.(Model)
+	if rm.forwarding.warning == "" {
+		t.Error("should have warning when no configs")
+	}
+}
+
+func TestRootNavigateToForwardingFetchesWhenConfigured(t *testing.T) {
+	m := New("1.0", t.TempDir(), identity.New(), false)
+	m.active = viewSettings
+	m.ncConfig = NamecheapSettings{
+		Username:      "u",
+		APIKey:        "k",
+		CachedDomains: []string{"a.com"},
+	}
+	m.gmConfig = GmailSettings{
+		Token: &gmail.Token{RefreshToken: "r"},
+		Email: "u@gmail.com",
+	}
+
+	result, cmd := m.Update(navigateMsg{view: viewForwarding})
+	rm := result.(Model)
+	if !rm.forwarding.loading {
+		t.Error("should be in loading state when both configured")
+	}
+	if cmd == nil {
+		t.Error("should produce fetch command")
+	}
+}
+
+// fakeForwardingGetter is a test double for the forwardingGetter interface.
+type fakeForwardingGetter struct {
+	rules map[string][]namecheap.ForwardingRule
+	err   error
+}
+
+func (f *fakeForwardingGetter) GetForwarding(_ context.Context, domain string) ([]namecheap.ForwardingRule, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	return f.rules[domain], nil
 }
 
 // helper for ctrl+d key
