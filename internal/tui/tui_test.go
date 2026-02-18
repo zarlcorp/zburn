@@ -50,8 +50,8 @@ func TestPasswordViewShowsPrompt(t *testing.T) {
 	m := newPasswordModel(false)
 	view := m.View()
 
-	if !strings.Contains(view, "master password") {
-		t.Error("view should show master password prompt")
+	if !strings.Contains(view, "enter your master password") {
+		t.Error("view should show master password description")
 	}
 	if strings.Contains(view, "create") {
 		t.Error("non-first-run view should not contain 'create'")
@@ -65,54 +65,45 @@ func TestPasswordFirstRunShowsCreate(t *testing.T) {
 	m := newPasswordModel(true)
 	view := m.View()
 
-	if !strings.Contains(view, "create master password") {
-		t.Error("first-run view should show 'create master password'")
+	if !strings.Contains(view, "create new store") {
+		t.Error("first-run view should show 'create new store'")
 	}
 }
 
 func TestPasswordFirstRunShowsConfirm(t *testing.T) {
 	m := newPasswordModel(true)
+	view := m.View()
 
-	// type password
-	m.input.SetValue("secret")
-	m, _ = m.Update(enterKey())
-
-	if !m.confirming {
-		t.Error("should be in confirming state after first entry")
-	}
-	if !strings.Contains(m.View(), "confirm password") {
-		t.Error("view should show confirm prompt")
+	if !strings.Contains(view, "confirm") {
+		t.Error("first-run view should show confirm field")
 	}
 }
 
 func TestPasswordFirstRunMismatch(t *testing.T) {
 	m := newPasswordModel(true)
 
-	// first entry
-	m.input.SetValue("secret1")
+	// type password and press enter to move to confirm
+	m.password.SetValue("secret1")
 	m, _ = m.Update(enterKey())
 
-	// second entry (mismatch)
-	m.input.SetValue("secret2")
+	// type mismatched confirm and press enter
+	m.confirm.SetValue("secret2")
 	m, _ = m.Update(enterKey())
 
 	if !strings.Contains(m.View(), "passwords do not match") {
 		t.Error("should show mismatch error")
-	}
-	if m.confirming {
-		t.Error("should reset confirming state")
 	}
 }
 
 func TestPasswordFirstRunMatch(t *testing.T) {
 	m := newPasswordModel(true)
 
-	// first entry
-	m.input.SetValue("secret")
+	// type password and press enter to move to confirm
+	m.password.SetValue("secret")
 	m, _ = m.Update(enterKey())
 
-	// confirm
-	m.input.SetValue("secret")
+	// type matching confirm and press enter
+	m.confirm.SetValue("secret")
 	m, cmd := m.Update(enterKey())
 
 	if cmd == nil {
@@ -128,12 +119,15 @@ func TestPasswordFirstRunMatch(t *testing.T) {
 	_ = m
 }
 
-func TestPasswordSubmitEmptyIgnored(t *testing.T) {
+func TestPasswordSubmitEmptyShowsError(t *testing.T) {
 	m := newPasswordModel(false)
-	m.input.SetValue("")
-	_, cmd := m.Update(enterKey())
+	m.password.SetValue("")
+	m, cmd := m.Update(enterKey())
 	if cmd != nil {
 		t.Error("empty password should not emit command")
+	}
+	if !strings.Contains(m.View(), "password cannot be empty") {
+		t.Error("should show empty password error")
 	}
 }
 
@@ -147,12 +141,12 @@ func TestPasswordQuit(t *testing.T) {
 
 func TestPasswordErrMsgClearsInput(t *testing.T) {
 	m := newPasswordModel(false)
-	m.input.SetValue("wrong")
+	m.password.SetValue("wrong")
 
 	m, _ = m.Update(passwordErrMsg{err: errTest("bad password")})
 
-	if m.input.Value() != "" {
-		t.Error("input should be cleared on error")
+	if m.password.Value() != "" {
+		t.Error("password should be cleared on error")
 	}
 	if !strings.Contains(m.View(), "bad password") {
 		t.Error("should display error message")
