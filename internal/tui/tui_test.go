@@ -256,16 +256,24 @@ func TestMenuQuitOnQ(t *testing.T) {
 	m := newMenuModel("1.0")
 	_, cmd := m.Update(keyMsg('q'))
 	if cmd == nil {
-		t.Fatal("q should quit")
+		t.Fatal("q should quit from menu")
 	}
 }
 
-func TestMenuQuitFromLastItem(t *testing.T) {
+func TestMenuSelectSettingsFromLastItem(t *testing.T) {
 	m := newMenuModel("1.0")
-	m.cursor = len(menuLabels) - 1 // Quit item
+	m.cursor = len(menuLabels) - 1 // settings is last
 	_, cmd := m.Update(enterKey())
 	if cmd == nil {
-		t.Fatal("selecting Quit should produce command")
+		t.Fatal("selecting settings should produce command")
+	}
+	msg := cmd()
+	nav, ok := msg.(navigateMsg)
+	if !ok {
+		t.Fatal("should emit navigateMsg")
+	}
+	if nav.view != viewSettings {
+		t.Errorf("view = %d, want viewSettings", nav.view)
 	}
 }
 

@@ -15,14 +15,12 @@ const (
 	menuGenerate menuChoice = iota
 	menuBrowse
 	menuSettings
-	menuQuit
 )
 
 var menuLabels = []string{
 	"generate identity",
 	"browse saved identities",
 	"settings",
-	"quit",
 }
 
 // menuModel is the main menu view.
@@ -82,8 +80,6 @@ func (m menuModel) selectItem() tea.Cmd {
 		return func() tea.Msg { return navigateMsg{view: viewList} }
 	case menuSettings:
 		return func() tea.Msg { return navigateMsg{view: viewSettings} }
-	case menuQuit:
-		return tea.Quit
 	}
 	return nil
 }
@@ -110,9 +106,8 @@ func (m menuModel) View() string {
 	}
 
 	s += "\n" + zstyle.RenderFooter([]zstyle.HelpPair{
-		{Key: "j/k", Desc: "navigate"},
+		{Key: "↑/↓", Desc: "navigate"},
 		{Key: "enter", Desc: "select"},
-		{Key: "q", Desc: "quit"},
 	}) + "\n"
 	return s
 }
