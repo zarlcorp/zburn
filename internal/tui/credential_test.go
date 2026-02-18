@@ -44,7 +44,7 @@ func TestCredentialListViewEmpty(t *testing.T) {
 	if !strings.Contains(view, "no credentials") {
 		t.Error("should show empty state")
 	}
-	if !strings.Contains(view, "credentials (0)") {
+	if !strings.Contains(view, "(0) credentials") {
 		t.Error("should show zero count")
 	}
 }
@@ -54,7 +54,7 @@ func TestCredentialListViewShowsCredentials(t *testing.T) {
 	m := newCredentialListModel(testIdentity(), creds)
 	view := m.View()
 
-	if !strings.Contains(view, "credentials (2)") {
+	if !strings.Contains(view, "(2) credentials") {
 		t.Error("should show count")
 	}
 	if !strings.Contains(view, "GitHub") {
@@ -436,21 +436,26 @@ func TestCredentialDetailTimestamps(t *testing.T) {
 	}
 }
 
-func TestCredentialDetailHelpShowsTOTP(t *testing.T) {
+func TestCredentialDetailTOTPSectionShown(t *testing.T) {
 	m := newCredentialDetailModel(testCredential())
 	view := m.View()
 
-	if !strings.Contains(view, "t copy totp") {
-		t.Error("help should show TOTP copy when secret present")
+	if !strings.Contains(view, "totp") {
+		t.Error("view should show TOTP section when secret present")
 	}
 }
 
-func TestCredentialDetailHelpNoTOTP(t *testing.T) {
+func TestCredentialDetailTOTPSectionHiddenWhenNoSecret(t *testing.T) {
 	m := newCredentialDetailModel(testCredentialNoTOTP())
 	view := m.View()
 
-	if strings.Contains(view, "t copy totp") {
-		t.Error("help should not show TOTP copy when no secret")
+	// totp section should not appear (only totp label line would show it)
+	lines := strings.Split(view, "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "totp") {
+			t.Error("view should not show totp section when no secret")
+		}
 	}
 }
 
@@ -484,8 +489,9 @@ func TestCredentialFormAddView(t *testing.T) {
 	m := newCredentialFormModel(testIdentity(), nil)
 	view := m.View()
 
-	if !strings.Contains(view, "add credential") {
-		t.Error("should show add title")
+	// title is now in root chrome; form shows identity header and field labels
+	if !strings.Contains(view, "Jane Doe") {
+		t.Error("should show identity name in add mode")
 	}
 	for _, label := range fieldLabels {
 		if !strings.Contains(view, label) {
@@ -499,11 +505,14 @@ func TestCredentialFormEditView(t *testing.T) {
 	m := newCredentialFormModel(testIdentity(), &c)
 	view := m.View()
 
-	if !strings.Contains(view, "edit credential") {
-		t.Error("should show edit title")
-	}
+	// title is now in root chrome; verify editing mode and field labels
 	if !m.editing {
 		t.Error("should be in editing mode")
+	}
+	for _, label := range fieldLabels {
+		if !strings.Contains(view, label) {
+			t.Errorf("form should contain %q", label)
+		}
 	}
 }
 
@@ -1017,12 +1026,13 @@ func TestDetailWNavigatesToCredentials(t *testing.T) {
 	}
 }
 
-func TestDetailHelpShowsCredentials(t *testing.T) {
+func TestDetailShowsCredentialSection(t *testing.T) {
 	m := newDetailModel(testIdentity())
 	view := m.View()
 
-	if !strings.Contains(view, "w credentials") {
-		t.Error("help should show w credentials shortcut")
+	// help is now in root chrome, but credential section info should still appear
+	if !strings.Contains(view, "credentials") {
+		t.Error("view should show credentials section")
 	}
 }
 

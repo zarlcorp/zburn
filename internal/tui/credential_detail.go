@@ -151,8 +151,8 @@ func (m credentialDetailModel) totpCountdown() int {
 }
 
 func (m credentialDetailModel) View() string {
-	title := zstyle.Title.Render(m.credential.Label)
-	s := fmt.Sprintf("\n  %s\n\n", title)
+	// sub-header with credential label
+	s := "\n  " + zstyle.Subtitle.Render(m.credential.Label) + "\n\n"
 
 	// fields
 	s += m.fieldLine("url", m.credential.URL)
@@ -192,12 +192,6 @@ func (m credentialDetailModel) View() string {
 		s += "\n"
 	}
 
-	help := "r reveal  c copy password"
-	if m.credential.TOTPSecret != "" {
-		help += "  t copy totp"
-	}
-	help += "  e edit  d delete  esc back  q quit"
-	s += "  " + zstyle.MutedText.Render(help) + "\n"
 	return s
 }
 

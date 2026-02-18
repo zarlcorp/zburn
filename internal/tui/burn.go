@@ -106,8 +106,8 @@ func (m burnModel) View() string {
 
 func (m burnModel) viewConfirm() string {
 	name := m.identity.FirstName + " " + m.identity.LastName
-	title := zstyle.Title.Render("burn " + name + "?")
-	s := fmt.Sprintf("\n  %s\n\n", title)
+
+	s := "\n  " + zstyle.Subtitle.Render("burn "+name+"?") + "\n\n"
 
 	s += "  " + zstyle.MutedText.Render("this will:") + "\n"
 	for _, step := range m.plan {
@@ -116,16 +116,13 @@ func (m burnModel) viewConfirm() string {
 
 	s += "\n"
 	s += "  " + zstyle.StatusWarn.Render("this cannot be undone.") + " (y/n)\n"
-	s += "\n"
 
-	help := "y confirm  any key cancel  q quit"
-	s += "  " + zstyle.MutedText.Render(help) + "\n"
 	return s
 }
 
 func (m burnModel) viewRunning() string {
 	name := m.identity.FirstName + " " + m.identity.LastName
-	s := fmt.Sprintf("\n  %s\n\n", zstyle.Title.Render("burning "+name+"..."))
+	s := "\n  " + zstyle.MutedText.Render("burning "+name+"...") + "\n"
 	return s
 }
 
@@ -137,15 +134,14 @@ func (m burnModel) viewDone() string {
 
 	// first line is the header
 	if m.result.HasErrors() {
-		b.WriteString(fmt.Sprintf("\n  %s\n\n", zstyle.StatusWarn.Render(lines[0])))
+		b.WriteString("\n  " + zstyle.StatusWarn.Render(lines[0]) + "\n\n")
 	} else {
-		b.WriteString(fmt.Sprintf("\n  %s\n\n", zstyle.StatusOK.Render(lines[0])))
+		b.WriteString("\n  " + zstyle.StatusOK.Render(lines[0]) + "\n\n")
 	}
 
 	// remaining lines are step details
 	for _, line := range lines[1:] {
 		if strings.Contains(line, ":") && strings.Contains(line, "- ") {
-			// step with error — find the colon separating description from error
 			b.WriteString("  " + zstyle.StatusWarn.Render(line) + "\n")
 		} else {
 			b.WriteString("  " + line + "\n")

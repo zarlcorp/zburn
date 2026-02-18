@@ -75,24 +75,20 @@ func (m forwardingModel) Update(msg tea.Msg) (forwardingModel, tea.Cmd) {
 }
 
 func (m forwardingModel) View() string {
-	title := zstyle.Title.Render("forwarding")
-	s := fmt.Sprintf("\n  %s\n\n", title)
+	s := "\n"
 
 	if m.warning != "" {
-		s += "  " + zstyle.StatusWarn.Render(m.warning) + "\n\n"
-		s += "  " + zstyle.MutedText.Render("esc back  q quit") + "\n"
+		s += "  " + zstyle.StatusWarn.Render(m.warning) + "\n"
 		return s
 	}
 
 	if m.loading {
-		s += "  " + zstyle.MutedText.Render("loading...") + "\n\n"
-		s += "  " + zstyle.MutedText.Render("esc back  q quit") + "\n"
+		s += "  " + zstyle.MutedText.Render("loading...") + "\n"
 		return s
 	}
 
 	if len(m.statuses) == 0 {
-		s += "  " + zstyle.MutedText.Render("no domains") + "\n\n"
-		s += "  " + zstyle.MutedText.Render("esc back  q quit") + "\n"
+		s += "  " + zstyle.MutedText.Render("no domains") + "\n"
 		return s
 	}
 
@@ -100,7 +96,6 @@ func (m forwardingModel) View() string {
 		s += formatDomainStatus(st)
 	}
 
-	s += "\n  " + zstyle.MutedText.Render("esc back  q quit") + "\n"
 	return s
 }
 

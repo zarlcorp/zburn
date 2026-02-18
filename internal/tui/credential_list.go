@@ -6,6 +6,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/zarlcorp/core/pkg/zstyle"
 	"github.com/zarlcorp/zburn/internal/credential"
 	"github.com/zarlcorp/zburn/internal/identity"
@@ -131,25 +132,26 @@ func (m credentialListModel) handleConfirm(msg tea.KeyMsg) (credentialListModel,
 }
 
 func (m credentialListModel) View() string {
-	title := zstyle.Title.Render(fmt.Sprintf("credentials (%d)", len(m.credentials)))
-	s := fmt.Sprintf("\n  %s\n\n", title)
+	accentStyle := lipgloss.NewStyle().Foreground(zstyle.ZburnAccent).Bold(true)
+
+	// sub-header with count
+	s := "\n  " + zstyle.Subtitle.Render(fmt.Sprintf("(%d) credentials", len(m.credentials))) + "\n\n"
 
 	if len(m.credentials) == 0 {
 		s += "  " + zstyle.MutedText.Render("no credentials") + "\n"
 		s += "\n"
 		s += "\n"
-		s += "  " + zstyle.MutedText.Render("a add  esc back  q quit") + "\n"
 		return s
 	}
 
 	for i, c := range m.credentials {
-		line := fmt.Sprintf("  %-20s %-30s %s",
+		line := fmt.Sprintf("%-20s %-30s %s",
 			truncate(c.Label, 18), truncate(c.Username, 28), truncate(c.URL, 40))
 
 		if i == m.cursor {
-			s += zstyle.Highlight.Render("> " + line) + "\n"
+			s += "  " + accentStyle.Render("▸") + " " + line + "\n"
 		} else {
-			s += "  " + line + "\n"
+			s += "    " + line + "\n"
 		}
 	}
 
@@ -164,7 +166,5 @@ func (m credentialListModel) View() string {
 		s += "\n"
 	}
 
-	help := "j/k navigate  enter view  a add  d delete  esc back  q quit"
-	s += "  " + zstyle.MutedText.Render(help) + "\n"
 	return s
 }
