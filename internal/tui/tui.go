@@ -241,29 +241,29 @@ func (m Model) View() string {
 func viewTitle(id viewID) string {
 	switch id {
 	case viewGenerate:
-		return "Generate Identity"
+		return "generate identity"
 	case viewList:
-		return "Saved Identities"
+		return "saved identities"
 	case viewDetail:
-		return "Identity Details"
+		return "identity details"
 	case viewCredentialList:
-		return "Credentials"
+		return "credentials"
 	case viewCredentialDetail:
-		return "Credential"
+		return "credential"
 	case viewCredentialForm:
-		return "Credential Form"
+		return "credential form"
 	case viewSettings:
-		return "Settings"
+		return "settings"
 	case viewSettingsNamecheap:
-		return "Namecheap"
+		return "namecheap"
 	case viewSettingsGmail:
-		return "Gmail"
+		return "gmail"
 	case viewSettingsTwilio:
-		return "Twilio"
+		return "twilio"
 	case viewBurn:
-		return "Burn"
+		return "burn"
 	case viewForwarding:
-		return "Forwarding"
+		return "forwarding"
 	}
 	return ""
 }
@@ -282,7 +282,7 @@ func helpFor(id viewID) []zstyle.HelpPair {
 		}
 	case viewList:
 		return []zstyle.HelpPair{
-			{Key: "j/k", Desc: "navigate"},
+			{Key: "↑/↓", Desc: "navigate"},
 			{Key: "enter", Desc: "view"},
 			{Key: "d", Desc: "burn"},
 			{Key: "esc", Desc: "back"},
@@ -299,7 +299,7 @@ func helpFor(id viewID) []zstyle.HelpPair {
 		}
 	case viewCredentialList:
 		return []zstyle.HelpPair{
-			{Key: "j/k", Desc: "navigate"},
+			{Key: "↑/↓", Desc: "navigate"},
 			{Key: "enter", Desc: "view"},
 			{Key: "a", Desc: "add"},
 			{Key: "d", Desc: "delete"},
@@ -325,7 +325,7 @@ func helpFor(id viewID) []zstyle.HelpPair {
 		}
 	case viewSettings:
 		return []zstyle.HelpPair{
-			{Key: "j/k", Desc: "navigate"},
+			{Key: "↑/↓", Desc: "navigate"},
 			{Key: "enter", Desc: "select"},
 			{Key: "esc", Desc: "back"},
 			{Key: "q", Desc: "quit"},
