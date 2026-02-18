@@ -193,17 +193,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) View() string {
-	// password and menu include the logo — render directly
-	switch m.active {
-	case viewPassword:
-		return m.password.View()
-	case viewMenu:
-		return m.menu.View()
-	}
-
-	// all other views: header + separator + content + footer
 	var content string
 	switch m.active {
+	case viewPassword:
+		content = m.password.View()
+	case viewMenu:
+		content = m.menu.View()
 	case viewGenerate:
 		content = m.generate.View()
 	case viewList:
@@ -240,6 +235,10 @@ func (m Model) View() string {
 // viewTitle returns the display title for each view.
 func viewTitle(id viewID) string {
 	switch id {
+	case viewPassword:
+		return "unlock"
+	case viewMenu:
+		return "menu"
 	case viewGenerate:
 		return "generate identity"
 	case viewList:
@@ -271,6 +270,18 @@ func viewTitle(id viewID) string {
 // helpFor returns keybinding pairs for each view's footer.
 func helpFor(id viewID) []zstyle.HelpPair {
 	switch id {
+	case viewPassword:
+		return []zstyle.HelpPair{
+			{Key: "enter", Desc: "submit"},
+			{Key: "tab", Desc: "next field"},
+			{Key: "ctrl+c", Desc: "quit"},
+		}
+	case viewMenu:
+		return []zstyle.HelpPair{
+			{Key: "↑/↓", Desc: "navigate"},
+			{Key: "enter", Desc: "select"},
+			{Key: "q", Desc: "quit"},
+		}
 	case viewGenerate:
 		return []zstyle.HelpPair{
 			{Key: "s", Desc: "save"},
