@@ -6,6 +6,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/zarlcorp/core/pkg/zstyle"
 	"github.com/zarlcorp/zburn/internal/identity"
 )
@@ -120,8 +121,11 @@ func (m detailModel) allFieldsText() string {
 }
 
 func (m detailModel) View() string {
-	title := zstyle.Title.Render(m.identity.FirstName + " " + m.identity.LastName)
-	s := fmt.Sprintf("\n  %s\n\n", title)
+	accentStyle := lipgloss.NewStyle().Foreground(zstyle.ZburnAccent).Bold(true)
+
+	// sub-header with identity name
+	name := zstyle.Subtitle.Render(m.identity.FirstName + " " + m.identity.LastName)
+	s := "\n  " + name + "\n\n"
 
 	for i, f := range m.fields {
 		if sectionBreaks[i] {
@@ -129,9 +133,9 @@ func (m detailModel) View() string {
 		}
 		label := zstyle.MutedText.Render(fmt.Sprintf("%-10s", f.label))
 		if i == m.cursor {
-			s += zstyle.ActiveBorder.Render(fmt.Sprintf("  > %s %s", label, f.value)) + "\n"
+			s += "  " + accentStyle.Render("▸") + " " + label + " " + f.value + "\n"
 		} else {
-			s += fmt.Sprintf("    %s %s\n", label, f.value)
+			s += "    " + label + " " + f.value + "\n"
 		}
 	}
 
@@ -153,7 +157,5 @@ func (m detailModel) View() string {
 		s += "\n"
 	}
 
-	help := "enter copy field  c copy all  w credentials  d burn  esc back  q quit"
-	s += "  " + zstyle.MutedText.Render(help) + "\n"
 	return s
 }

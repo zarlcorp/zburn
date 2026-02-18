@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/zarlcorp/core/pkg/zstyle"
 	"github.com/zarlcorp/zburn/internal/gmail"
 )
@@ -236,8 +237,9 @@ func (m gmailModel) updateInput(msg tea.Msg) (gmailModel, tea.Cmd) {
 }
 
 func (m gmailModel) View() string {
-	title := zstyle.Title.Render("gmail settings")
-	s := fmt.Sprintf("\n  %s\n\n", title)
+	accentStyle := lipgloss.NewStyle().Foreground(zstyle.ZburnAccent).Bold(true)
+
+	s := "\n"
 
 	// show connection status
 	if m.current.Configured() {
@@ -248,15 +250,13 @@ func (m gmailModel) View() string {
 
 	if m.action == gmailActionWaiting {
 		s += "  " + zstyle.StatusWarn.Render("waiting for browser authorization...") + "\n"
-		s += "\n"
-		s += "  " + zstyle.MutedText.Render("esc cancel  q quit") + "\n"
 		return s
 	}
 
 	for i, input := range m.inputs {
 		label := zstyle.MutedText.Render(fmt.Sprintf("  %-16s", gmailLabels[i]))
 		if i == m.focus {
-			s += zstyle.Highlight.Render("> ") + label + input.View() + "\n"
+			s += accentStyle.Render("▸") + " " + label + input.View() + "\n"
 		} else {
 			s += "  " + label + input.View() + "\n"
 		}
@@ -270,10 +270,5 @@ func (m gmailModel) View() string {
 		s += "\n"
 	}
 
-	help := "tab next  enter connect  esc back  q quit"
-	if m.current.Configured() {
-		help = "tab next  enter connect  ctrl+d disconnect  esc back  q quit"
-	}
-	s += "  " + zstyle.MutedText.Render(help) + "\n"
 	return s
 }

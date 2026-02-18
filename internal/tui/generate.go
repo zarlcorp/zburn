@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/zarlcorp/core/pkg/zstyle"
 	"github.com/zarlcorp/zburn/internal/identity"
 )
@@ -159,8 +160,9 @@ func (m generateModel) allFieldsText() string {
 var sectionBreaks = map[int]bool{3: true, 5: true}
 
 func (m generateModel) View() string {
-	title := zstyle.Title.Render("generated identity")
-	s := fmt.Sprintf("\n  %s\n\n", title)
+	accentStyle := lipgloss.NewStyle().Foreground(zstyle.ZburnAccent).Bold(true)
+
+	s := "\n"
 
 	for i, f := range m.fields {
 		if sectionBreaks[i] {
@@ -172,9 +174,9 @@ func (m generateModel) View() string {
 			line += "  " + zstyle.MutedText.Render("["+m.domain+"]  space to cycle")
 		}
 		if i == m.cursor {
-			s += zstyle.ActiveBorder.Render(fmt.Sprintf("  > %s", line)) + "\n"
+			s += "  " + accentStyle.Render("▸") + " " + line + "\n"
 		} else {
-			s += fmt.Sprintf("    %s\n", line)
+			s += "    " + line + "\n"
 		}
 	}
 
@@ -187,11 +189,5 @@ func (m generateModel) View() string {
 		s += "\n"
 	}
 
-	help := "s save  c copy all  enter copy field  n new"
-	if m.domain != "" {
-		help += "  space domain"
-	}
-	help += "  esc back  q quit"
-	s += "  " + zstyle.MutedText.Render(help) + "\n"
 	return s
 }

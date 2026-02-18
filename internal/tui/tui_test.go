@@ -165,7 +165,7 @@ func TestMenuViewShowsItems(t *testing.T) {
 	m := newMenuModel("1.0")
 	view := m.View()
 
-	for _, item := range menuItems {
+	for _, item := range menuLabels {
 		if !strings.Contains(view, item) {
 			t.Errorf("menu should contain %q", item)
 		}
@@ -216,11 +216,11 @@ func TestMenuNavigation(t *testing.T) {
 func TestMenuCursorClampMax(t *testing.T) {
 	m := newMenuModel("1.0")
 	// go to last item
-	for i := 0; i < len(menuItems); i++ {
+	for i := 0; i < len(menuLabels); i++ {
 		m, _ = m.Update(keyMsg('j'))
 	}
-	if m.cursor != len(menuItems)-1 {
-		t.Errorf("cursor = %d, want %d", m.cursor, len(menuItems)-1)
+	if m.cursor != len(menuLabels)-1 {
+		t.Errorf("cursor = %d, want %d", m.cursor, len(menuLabels)-1)
 	}
 }
 
@@ -268,7 +268,7 @@ func TestMenuQuitOnQ(t *testing.T) {
 
 func TestMenuQuitFromLastItem(t *testing.T) {
 	m := newMenuModel("1.0")
-	m.cursor = len(menuItems) - 1 // Quit item
+	m.cursor = len(menuLabels) - 1 // Quit item
 	_, cmd := m.Update(enterKey())
 	if cmd == nil {
 		t.Fatal("selecting Quit should produce command")
@@ -1151,9 +1151,7 @@ func TestDomainHintAppearsInView(t *testing.T) {
 	if !strings.Contains(view, "space to cycle") {
 		t.Error("view should contain 'space to cycle' hint")
 	}
-	if !strings.Contains(view, "space domain") {
-		t.Error("help text should contain 'space domain'")
-	}
+	// help footer is now rendered by root chrome, not by the sub-view
 }
 
 func TestDomainHintAbsentWhenDefault(t *testing.T) {
@@ -1164,9 +1162,7 @@ func TestDomainHintAbsentWhenDefault(t *testing.T) {
 	if strings.Contains(view, "space to cycle") {
 		t.Error("view should not contain 'space to cycle' when no domain")
 	}
-	if strings.Contains(view, "space domain") {
-		t.Error("help text should not contain 'space domain' when no domain")
-	}
+	// help footer is now rendered by root chrome, not by the sub-view
 }
 
 func TestNavigateToGenerateUsesDomain(t *testing.T) {

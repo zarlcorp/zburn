@@ -5,6 +5,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/zarlcorp/core/pkg/zstyle"
 	"github.com/zarlcorp/zburn/internal/identity"
 )
@@ -112,31 +113,31 @@ func (m listModel) handleKey(msg tea.KeyMsg) (listModel, tea.Cmd) {
 }
 
 func (m listModel) View() string {
-	title := zstyle.Title.Render("saved identities")
-	s := fmt.Sprintf("\n  %s\n\n", title)
+	accentStyle := lipgloss.NewStyle().Foreground(zstyle.ZburnAccent).Bold(true)
+
+	s := "\n"
 
 	if len(m.identities) == 0 {
 		s += "  " + zstyle.MutedText.Render("no saved identities") + "\n"
 		s += "\n"
 		// reserved flash line (empty for empty state)
 		s += "\n"
-		s += "  " + zstyle.MutedText.Render("esc back  q quit") + "\n"
 		return s
 	}
 
 	for i, id := range m.identities {
 		name := truncate(id.FirstName+" "+id.LastName, 20)
 		email := truncate(id.Email, 30)
-		line := fmt.Sprintf("  %-20s %-30s", name, email)
+		line := fmt.Sprintf("%-20s %-30s", name, email)
 
 		if n := m.credCounts[id.ID]; n > 0 {
 			line += "  " + zstyle.MutedText.Render(fmt.Sprintf("(%d)", n))
 		}
 
 		if i == m.cursor {
-			s += zstyle.Highlight.Render("> "+line) + "\n"
+			s += "  " + accentStyle.Render("▸") + " " + line + "\n"
 		} else {
-			s += "  " + line + "\n"
+			s += "    " + line + "\n"
 		}
 	}
 
@@ -149,8 +150,6 @@ func (m listModel) View() string {
 		s += "\n"
 	}
 
-	help := "j/k navigate  enter view  d burn  esc back  q quit"
-	s += "  " + zstyle.MutedText.Render(help) + "\n"
 	return s
 }
 

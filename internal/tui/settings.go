@@ -1,8 +1,6 @@
 package tui
 
 import (
-	"fmt"
-
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/zarlcorp/core/pkg/zstyle"
@@ -114,36 +112,32 @@ func (m settingsModel) statusFor(choice settingsChoice) string {
 }
 
 func (m settingsModel) View() string {
-	title := zstyle.Title.Render("settings")
-	s := fmt.Sprintf("\n  %s\n\n", title)
+	s := "\n"
 
 	for i, item := range settingsItems {
 		choice := settingsChoice(i)
-		if choice == settingsForwarding || choice == settingsBack {
-			// no status for non-service items
-			if m.cursor == i {
-				s += zstyle.Highlight.Render(fmt.Sprintf("    > %s", item)) + "\n"
-			} else {
-				s += fmt.Sprintf("      %s\n", item)
+
+		// build count/status string for service items
+		var countStr string
+		if choice != settingsForwarding && choice != settingsBack {
+			status := m.statusFor(choice)
+			statusStyle := zstyle.StatusErr
+			if status == "configured" {
+				statusStyle = zstyle.StatusOK
 			}
-			continue
+			countStr = statusStyle.Render(status)
 		}
 
-		status := m.statusFor(choice)
-		statusStyle := zstyle.StatusErr
-		if status == "configured" {
-			statusStyle = zstyle.StatusOK
+		mi := zstyle.MenuItem{
+			Label:  item,
+			Active: m.cursor == i,
 		}
-
-		if m.cursor == i {
-			s += zstyle.Highlight.Render(fmt.Sprintf("    > %-14s", item)) +
-				" " + statusStyle.Render(status) + "\n"
-		} else {
-			s += fmt.Sprintf("      %-14s", item) +
-				" " + statusStyle.Render(status) + "\n"
+		line := zstyle.RenderMenuItem(mi, zstyle.ZburnAccent)
+		if countStr != "" {
+			line += " " + countStr
 		}
+		s += line + "\n"
 	}
 
-	s += "\n  " + zstyle.MutedText.Render("j/k navigate  enter select  esc back  q quit") + "\n"
 	return s
 }

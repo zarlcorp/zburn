@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/zarlcorp/core/pkg/zcrypto"
 	"github.com/zarlcorp/core/pkg/zstyle"
 	"github.com/zarlcorp/zburn/internal/credential"
@@ -302,14 +303,11 @@ func (m credentialFormModel) submit() (credentialFormModel, tea.Cmd) {
 }
 
 func (m credentialFormModel) View() string {
-	action := "add credential"
-	if m.editing {
-		action = "edit credential"
-	}
-	title := zstyle.Title.Render(action)
-	s := fmt.Sprintf("\n  %s\n", title)
+	accentStyle := lipgloss.NewStyle().Foreground(zstyle.ZburnAccent).Bold(true)
 
-	// identity header
+	s := "\n"
+
+	// identity header (add mode only)
 	if !m.editing {
 		name := m.identity.FirstName + " " + m.identity.LastName
 		header := name + "  " + m.identity.Email
@@ -321,7 +319,7 @@ func (m credentialFormModel) View() string {
 		label := zstyle.MutedText.Render(fmt.Sprintf("  %-12s", fieldLabels[i]))
 		cursor := "  "
 		if i == m.focus {
-			cursor = "> "
+			cursor = accentStyle.Render("▸") + " "
 		}
 
 		fieldView := m.inputs[i].View()
@@ -347,8 +345,6 @@ func (m credentialFormModel) View() string {
 		s += "\n"
 	}
 
-	help := "tab next  shift+tab prev  space cycle  enter save  esc cancel"
-	s += "  " + zstyle.MutedText.Render(help) + "\n"
 	return s
 }
 

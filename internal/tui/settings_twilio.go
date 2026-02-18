@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/zarlcorp/core/pkg/zstyle"
 )
 
@@ -183,13 +184,14 @@ func (m twilioModel) updateInput(msg tea.Msg) (twilioModel, tea.Cmd) {
 }
 
 func (m twilioModel) View() string {
-	title := zstyle.Title.Render("twilio settings")
-	s := fmt.Sprintf("\n  %s\n\n", title)
+	accentStyle := lipgloss.NewStyle().Foreground(zstyle.ZburnAccent).Bold(true)
+
+	s := "\n"
 
 	for i, input := range m.inputs {
 		label := zstyle.MutedText.Render(fmt.Sprintf("  %-14s", twLabels[i]))
 		if i == m.focus {
-			s += zstyle.Highlight.Render("> ") + label + input.View() + "\n"
+			s += accentStyle.Render("▸") + " " + label + input.View() + "\n"
 		} else {
 			s += "  " + label + input.View() + "\n"
 		}
@@ -206,9 +208,9 @@ func (m twilioModel) View() string {
 		}
 
 		if idx == m.focus {
-			s += zstyle.Highlight.Render(fmt.Sprintf("  > %s %s", check, opt.name)) + "\n"
+			s += "  " + accentStyle.Render("▸") + " " + check + " " + opt.name + "\n"
 		} else {
-			s += fmt.Sprintf("    %s %s\n", check, opt.name)
+			s += "    " + check + " " + opt.name + "\n"
 		}
 	}
 
@@ -220,6 +222,5 @@ func (m twilioModel) View() string {
 		s += "\n"
 	}
 
-	s += "  " + zstyle.MutedText.Render("tab next  enter toggle  ctrl+s save  esc back  q quit") + "\n"
 	return s
 }

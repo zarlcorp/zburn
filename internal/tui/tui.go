@@ -11,6 +11,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/zarlcorp/core/pkg/zfilesystem"
 	"github.com/zarlcorp/core/pkg/zstore"
+	"github.com/zarlcorp/core/pkg/zstyle"
 	"github.com/zarlcorp/zburn/internal/burn"
 	"github.com/zarlcorp/zburn/internal/credential"
 	"github.com/zarlcorp/zburn/internal/identity"
@@ -80,6 +81,10 @@ type Model struct {
 	// domain rotation
 	domains   []string
 	domainIdx int
+
+	// terminal dimensions
+	width  int
+	height int
 }
 
 // New creates the root TUI model.
@@ -106,6 +111,11 @@ func (m Model) Init() tea.Cmd {
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+		return m, nil
+
 	case passwordSubmitMsg:
 		return m.openStore(msg.password)
 
@@ -183,37 +193,178 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) View() string {
+	// password and menu include the logo — render directly
 	switch m.active {
 	case viewPassword:
 		return m.password.View()
 	case viewMenu:
 		return m.menu.View()
+	}
+
+	// all other views: header + separator + content + footer
+	var content string
+	switch m.active {
 	case viewGenerate:
-		return m.generate.View()
+		content = m.generate.View()
 	case viewList:
-		return m.list.View()
+		content = m.list.View()
 	case viewDetail:
-		return m.detail.View()
+		content = m.detail.View()
 	case viewCredentialList:
-		return m.credentialList.View()
+		content = m.credentialList.View()
 	case viewCredentialDetail:
-		return m.credentialDetail.View()
+		content = m.credentialDetail.View()
 	case viewCredentialForm:
-		return m.credentialForm.View()
+		content = m.credentialForm.View()
 	case viewSettings:
-		return m.settings.View()
+		content = m.settings.View()
 	case viewSettingsNamecheap:
-		return m.settingsNamecheap.View()
+		content = m.settingsNamecheap.View()
 	case viewSettingsGmail:
-		return m.settingsGmail.View()
+		content = m.settingsGmail.View()
 	case viewSettingsTwilio:
-		return m.settingsTwilio.View()
+		content = m.settingsTwilio.View()
 	case viewBurn:
-		return m.burn.View()
+		content = m.burn.View()
 	case viewForwarding:
-		return m.forwarding.View()
+		content = m.forwarding.View()
+	}
+
+	header := zstyle.RenderHeader("zburn", viewTitle(m.active), zstyle.ZburnAccent)
+	sep := zstyle.RenderSeparator(m.width)
+	footer := zstyle.RenderFooter(helpFor(m.active))
+
+	return "\n" + header + "\n" + sep + "\n" + content + "\n" + footer + "\n"
+}
+
+// viewTitle returns the display title for each view.
+func viewTitle(id viewID) string {
+	switch id {
+	case viewGenerate:
+		return "Generate Identity"
+	case viewList:
+		return "Saved Identities"
+	case viewDetail:
+		return "Identity Details"
+	case viewCredentialList:
+		return "Credentials"
+	case viewCredentialDetail:
+		return "Credential"
+	case viewCredentialForm:
+		return "Credential Form"
+	case viewSettings:
+		return "Settings"
+	case viewSettingsNamecheap:
+		return "Namecheap"
+	case viewSettingsGmail:
+		return "Gmail"
+	case viewSettingsTwilio:
+		return "Twilio"
+	case viewBurn:
+		return "Burn"
+	case viewForwarding:
+		return "Forwarding"
 	}
 	return ""
+}
+
+// helpFor returns keybinding pairs for each view's footer.
+func helpFor(id viewID) []zstyle.HelpPair {
+	switch id {
+	case viewGenerate:
+		return []zstyle.HelpPair{
+			{Key: "s", Desc: "save"},
+			{Key: "c", Desc: "copy all"},
+			{Key: "enter", Desc: "copy field"},
+			{Key: "n", Desc: "new"},
+			{Key: "esc", Desc: "back"},
+			{Key: "q", Desc: "quit"},
+		}
+	case viewList:
+		return []zstyle.HelpPair{
+			{Key: "j/k", Desc: "navigate"},
+			{Key: "enter", Desc: "view"},
+			{Key: "d", Desc: "burn"},
+			{Key: "esc", Desc: "back"},
+			{Key: "q", Desc: "quit"},
+		}
+	case viewDetail:
+		return []zstyle.HelpPair{
+			{Key: "enter", Desc: "copy field"},
+			{Key: "c", Desc: "copy all"},
+			{Key: "w", Desc: "credentials"},
+			{Key: "d", Desc: "burn"},
+			{Key: "esc", Desc: "back"},
+			{Key: "q", Desc: "quit"},
+		}
+	case viewCredentialList:
+		return []zstyle.HelpPair{
+			{Key: "j/k", Desc: "navigate"},
+			{Key: "enter", Desc: "view"},
+			{Key: "a", Desc: "add"},
+			{Key: "d", Desc: "delete"},
+			{Key: "esc", Desc: "back"},
+			{Key: "q", Desc: "quit"},
+		}
+	case viewCredentialDetail:
+		return []zstyle.HelpPair{
+			{Key: "r", Desc: "reveal"},
+			{Key: "c", Desc: "copy pw"},
+			{Key: "e", Desc: "edit"},
+			{Key: "d", Desc: "delete"},
+			{Key: "esc", Desc: "back"},
+			{Key: "q", Desc: "quit"},
+		}
+	case viewCredentialForm:
+		return []zstyle.HelpPair{
+			{Key: "tab", Desc: "next"},
+			{Key: "shift+tab", Desc: "prev"},
+			{Key: "space", Desc: "cycle"},
+			{Key: "enter", Desc: "save"},
+			{Key: "esc", Desc: "cancel"},
+		}
+	case viewSettings:
+		return []zstyle.HelpPair{
+			{Key: "j/k", Desc: "navigate"},
+			{Key: "enter", Desc: "select"},
+			{Key: "esc", Desc: "back"},
+			{Key: "q", Desc: "quit"},
+		}
+	case viewSettingsNamecheap:
+		return []zstyle.HelpPair{
+			{Key: "tab", Desc: "next"},
+			{Key: "ctrl+s", Desc: "save"},
+			{Key: "esc", Desc: "back"},
+			{Key: "q", Desc: "quit"},
+		}
+	case viewSettingsGmail:
+		return []zstyle.HelpPair{
+			{Key: "tab", Desc: "next"},
+			{Key: "enter", Desc: "connect"},
+			{Key: "esc", Desc: "back"},
+			{Key: "q", Desc: "quit"},
+		}
+	case viewSettingsTwilio:
+		return []zstyle.HelpPair{
+			{Key: "tab", Desc: "next"},
+			{Key: "enter", Desc: "toggle"},
+			{Key: "ctrl+s", Desc: "save"},
+			{Key: "esc", Desc: "back"},
+			{Key: "q", Desc: "quit"},
+		}
+	case viewBurn:
+		return []zstyle.HelpPair{
+			{Key: "y", Desc: "confirm"},
+			{Key: "n", Desc: "cancel"},
+			{Key: "q", Desc: "quit"},
+		}
+	case viewForwarding:
+		return []zstyle.HelpPair{
+			{Key: "esc", Desc: "back"},
+			{Key: "q", Desc: "quit"},
+		}
+	}
+	return nil
 }
 
 func (m Model) updateActive(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -301,7 +452,13 @@ func (m Model) openStore(password string) (tea.Model, tea.Cmd) {
 func (m Model) navigate(view viewID) (tea.Model, tea.Cmd) {
 	switch view {
 	case viewMenu:
-		m.menu = newMenuModel(m.version)
+		mm := newMenuModel(m.version)
+		if m.identities != nil {
+			if ids, err := m.identities.List(); err == nil {
+				mm.identityCount = len(ids)
+			}
+		}
+		m.menu = mm
 		m.active = viewMenu
 		return m, tea.ClearScreen
 

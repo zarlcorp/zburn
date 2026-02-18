@@ -18,7 +18,7 @@ const (
 	menuQuit
 )
 
-var menuItems = []string{
+var menuLabels = []string{
 	"generate identity",
 	"browse saved identities",
 	"settings",
@@ -27,8 +27,9 @@ var menuItems = []string{
 
 // menuModel is the main menu view.
 type menuModel struct {
-	cursor  int
-	version string
+	cursor        int
+	version       string
+	identityCount int
 }
 
 // navigateMsg tells the root model to switch views.
@@ -59,7 +60,7 @@ func (m menuModel) Update(msg tea.Msg) (menuModel, tea.Cmd) {
 		}
 
 		if key.Matches(msg, zstyle.KeyDown) {
-			if m.cursor < len(menuItems)-1 {
+			if m.cursor < len(menuLabels)-1 {
 				m.cursor++
 			}
 			return m, nil
@@ -96,14 +97,22 @@ func (m menuModel) View() string {
 
 	s := fmt.Sprintf("\n%s\n%s\n\n", logo, ver)
 
-	for i, item := range menuItems {
-		if m.cursor == i {
-			s += zstyle.Highlight.Render(fmt.Sprintf("    > %s", item)) + "\n"
-		} else {
-			s += fmt.Sprintf("      %s\n", item)
+	for i, label := range menuLabels {
+		item := zstyle.MenuItem{
+			Label:  label,
+			Active: m.cursor == i,
 		}
+		// add count badge for browse
+		if menuChoice(i) == menuBrowse && m.identityCount > 0 {
+			item.Count = fmt.Sprintf("(%d)", m.identityCount)
+		}
+		s += zstyle.RenderMenuItem(item, zstyle.ZburnAccent) + "\n"
 	}
 
-	s += "\n  " + zstyle.MutedText.Render("j/k navigate  enter select  q quit") + "\n"
+	s += "\n" + zstyle.RenderFooter([]zstyle.HelpPair{
+		{Key: "j/k", Desc: "navigate"},
+		{Key: "enter", Desc: "select"},
+		{Key: "q", Desc: "quit"},
+	}) + "\n"
 	return s
 }
