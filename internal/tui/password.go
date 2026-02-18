@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -10,13 +11,21 @@ import (
 	"github.com/zarlcorp/core/pkg/zstyle"
 )
 
+// pwField identifies which input is focused on the password screen.
+type pwField int
+
+const (
+	pwFieldPassword pwField = iota
+	pwFieldConfirm
+)
+
 // passwordModel handles the master password prompt.
 type passwordModel struct {
-	input      textinput.Model
-	firstRun   bool
-	confirming bool
-	firstPass  string
-	errMsg     string
+	password textinput.Model
+	confirm  textinput.Model
+	focused  pwField
+	firstRun bool
+	errMsg   string
 }
 
 // passwordSubmitMsg is sent when the user submits a password.
@@ -30,16 +39,23 @@ type passwordErrMsg struct {
 }
 
 func newPasswordModel(firstRun bool) passwordModel {
-	ti := textinput.New()
-	ti.Placeholder = ""
-	ti.EchoMode = textinput.EchoPassword
-	ti.EchoCharacter = '*'
-	ti.Focus()
-	ti.CharLimit = 128
-	ti.Width = 40
+	pw := textinput.New()
+	pw.EchoMode = textinput.EchoPassword
+	pw.EchoCharacter = '\u2022'
+	pw.Focus()
+	pw.PromptStyle = lipgloss.NewStyle().Foreground(zstyle.ZburnAccent)
+	pw.TextStyle = lipgloss.NewStyle().Foreground(zstyle.Text)
+
+	cf := textinput.New()
+	cf.EchoMode = textinput.EchoPassword
+	cf.EchoCharacter = '\u2022'
+	cf.PromptStyle = lipgloss.NewStyle().Foreground(zstyle.ZburnAccent)
+	cf.TextStyle = lipgloss.NewStyle().Foreground(zstyle.Text)
 
 	return passwordModel{
-		input:    ti,
+		password: pw,
+		confirm:  cf,
+		focused:  pwFieldPassword,
 		firstRun: firstRun,
 	}
 }
@@ -55,78 +71,125 @@ func (m passwordModel) Update(msg tea.Msg) (passwordModel, tea.Cmd) {
 			return m, tea.Quit
 		}
 
-		if key.Matches(msg, zstyle.KeyEnter) {
-			return m.handleSubmit()
+		// clear error on any key
+		m.errMsg = ""
+
+		switch {
+		case key.Matches(msg, zstyle.KeyEnter):
+			return m.submit()
+		case key.Matches(msg, zstyle.KeyTab):
+			if m.firstRun {
+				return m.nextField(), nil
+			}
 		}
 
 	case passwordErrMsg:
 		m.errMsg = msg.err.Error()
-		m.input.SetValue("")
-		m.confirming = false
-		m.firstPass = ""
+		m.password.SetValue("")
+		m.confirm.SetValue("")
 		return m, nil
 	}
 
-	var cmd tea.Cmd
-	m.input, cmd = m.input.Update(msg)
-	return m, cmd
+	return m.updateInputs(msg)
 }
 
-func (m passwordModel) handleSubmit() (passwordModel, tea.Cmd) {
-	val := m.input.Value()
-	if val == "" {
+func (m passwordModel) submit() (passwordModel, tea.Cmd) {
+	pw := m.password.Value()
+	if pw == "" {
+		m.errMsg = "password cannot be empty"
 		return m, nil
 	}
 
-	// first run: need to confirm password
-	if m.firstRun && !m.confirming {
-		m.firstPass = val
-		m.confirming = true
-		m.input.SetValue("")
-		m.errMsg = ""
-		return m, nil
-	}
-
-	if m.firstRun && m.confirming {
-		if val != m.firstPass {
+	if m.firstRun {
+		if m.focused == pwFieldPassword {
+			return m.nextField(), nil
+		}
+		if pw != m.confirm.Value() {
 			m.errMsg = "passwords do not match"
-			m.confirming = false
-			m.firstPass = ""
-			m.input.SetValue("")
+			m.confirm.SetValue("")
 			return m, nil
 		}
 	}
 
-	m.errMsg = ""
 	return m, func() tea.Msg {
-		return passwordSubmitMsg{password: val}
+		return passwordSubmitMsg{password: pw}
 	}
 }
 
+func (m passwordModel) nextField() passwordModel {
+	if m.focused == pwFieldPassword {
+		m.focused = pwFieldConfirm
+		m.password.Blur()
+		m.confirm.Focus()
+	} else {
+		m.focused = pwFieldPassword
+		m.confirm.Blur()
+		m.password.Focus()
+	}
+	return m
+}
+
+func (m passwordModel) updateInputs(msg tea.Msg) (passwordModel, tea.Cmd) {
+	var cmd tea.Cmd
+	if m.focused == pwFieldPassword {
+		m.password, cmd = m.password.Update(msg)
+	} else {
+		m.confirm, cmd = m.confirm.Update(msg)
+	}
+	return m, cmd
+}
+
 func (m passwordModel) View() string {
+	var b strings.Builder
+
+	// logo
 	indent := lipgloss.NewStyle().MarginLeft(2)
 	logo := indent.Render(
 		zstyle.StyledLogo(lipgloss.NewStyle().Foreground(zstyle.ZburnAccent)),
 	)
 	toolName := indent.Render(zstyle.MutedText.Render("zburn"))
+	b.WriteString(fmt.Sprintf("\n%s\n%s\n\n", logo, toolName))
 
-	var prompt string
+	// title and description
 	if m.firstRun {
-		if m.confirming {
-			prompt = "confirm password:"
-		} else {
-			prompt = "create master password:"
-		}
+		title := lipgloss.NewStyle().
+			Foreground(zstyle.ZburnAccent).
+			Bold(true).
+			Render("create new store")
+		b.WriteString(fmt.Sprintf("  %s\n\n", title))
+		desc := zstyle.MutedText.Render("choose a master password to protect your store.")
+		b.WriteString(fmt.Sprintf("  %s\n\n", desc))
 	} else {
-		prompt = "master password:"
+		title := lipgloss.NewStyle().
+			Foreground(zstyle.ZburnAccent).
+			Bold(true).
+			Render("unlock store")
+		b.WriteString(fmt.Sprintf("  %s\n\n", title))
+		desc := zstyle.MutedText.Render("enter your master password.")
+		b.WriteString(fmt.Sprintf("  %s\n\n", desc))
 	}
 
-	s := fmt.Sprintf("\n%s\n%s\n\n  %s\n  %s\n", logo, toolName, prompt, m.input.View())
+	// password field
+	label := zstyle.Subtext1
+	pwLabel := lipgloss.NewStyle().Foreground(label).Render("password")
+	b.WriteString(fmt.Sprintf("  %s\n", pwLabel))
+	b.WriteString(fmt.Sprintf("  %s\n", m.password.View()))
 
+	// confirm field (first-run only)
+	if m.firstRun {
+		b.WriteString("\n")
+		cfLabel := lipgloss.NewStyle().Foreground(label).Render("confirm")
+		b.WriteString(fmt.Sprintf("  %s\n", cfLabel))
+		b.WriteString(fmt.Sprintf("  %s\n", m.confirm.View()))
+	}
+
+	// error display
 	if m.errMsg != "" {
-		s += "\n  " + zstyle.StatusErr.Render(m.errMsg)
+		b.WriteString("\n")
+		errText := zstyle.StatusErr.Render("  " + m.errMsg)
+		b.WriteString(errText)
+		b.WriteString("\n")
 	}
 
-	s += "\n"
-	return s
+	return b.String()
 }
