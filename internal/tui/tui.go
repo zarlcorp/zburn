@@ -278,7 +278,6 @@ func helpFor(id viewID) []zstyle.HelpPair {
 		}
 	case viewMenu:
 		return []zstyle.HelpPair{
-			{Key: "↑/↓", Desc: "navigate"},
 			{Key: "enter", Desc: "select"},
 			{Key: "q", Desc: "quit"},
 		}
@@ -293,7 +292,6 @@ func helpFor(id viewID) []zstyle.HelpPair {
 		}
 	case viewList:
 		return []zstyle.HelpPair{
-			{Key: "↑/↓", Desc: "navigate"},
 			{Key: "enter", Desc: "view"},
 			{Key: "d", Desc: "burn"},
 			{Key: "esc", Desc: "back"},
@@ -310,7 +308,6 @@ func helpFor(id viewID) []zstyle.HelpPair {
 		}
 	case viewCredentialList:
 		return []zstyle.HelpPair{
-			{Key: "↑/↓", Desc: "navigate"},
 			{Key: "enter", Desc: "view"},
 			{Key: "a", Desc: "add"},
 			{Key: "d", Desc: "delete"},
@@ -336,7 +333,6 @@ func helpFor(id viewID) []zstyle.HelpPair {
 		}
 	case viewSettings:
 		return []zstyle.HelpPair{
-			{Key: "↑/↓", Desc: "navigate"},
 			{Key: "enter", Desc: "select"},
 			{Key: "esc", Desc: "back"},
 			{Key: "q", Desc: "quit"},
