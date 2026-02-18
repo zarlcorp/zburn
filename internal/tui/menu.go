@@ -105,9 +105,5 @@ func (m menuModel) View() string {
 		s += zstyle.RenderMenuItem(item, zstyle.ZburnAccent) + "\n"
 	}
 
-	s += "\n" + zstyle.RenderFooter([]zstyle.HelpPair{
-		{Key: "↑/↓", Desc: "navigate"},
-		{Key: "enter", Desc: "select"},
-	}) + "\n"
 	return s
 }
