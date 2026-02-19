@@ -12,6 +12,8 @@ Disposable identities — never give a service your real information again.
 
 zburn generates disposable identities for online services: burner emails, names, addresses, phone numbers, and passwords. No account required, no tracking. Download, run, done.
 
+![zburn demo](docs/demo.gif)
+
 ## Install
 
 ### Homebrew
