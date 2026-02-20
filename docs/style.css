@@ -1,10 +1,10 @@
 /* zburn — page-specific overrides */
 /* shared design system lives at zarlcorp.github.io/shared.css */
 
-/* tool accent: peach */
-:root { --accent: var(--peach); }
+/* tool accent: warm orange */
+:root { --accent: oklch(0.75 0.12 55); }
 
-/* features window */
+/* features card */
 
 .landing .features {
   padding: 0.75rem 0;
@@ -19,7 +19,7 @@
 }
 
 .landing-links a {
-  color: var(--overlay1);
+  color: var(--muted-foreground);
 }
 
 .landing-links a:hover {
@@ -27,7 +27,7 @@
 }
 
 .landing-links .sep {
-  color: var(--surface2);
+  color: var(--muted-foreground);
   margin: 0 0.5rem;
 }
 
@@ -37,6 +37,6 @@
   padding: 2rem 0 3rem;
 }
 
-.docs-page .window + .window {
+.docs-page .card + .card {
   margin-top: var(--gap);
 }

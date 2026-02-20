@@ -12,17 +12,21 @@
 
   <nav class="bar">
     <div class="container">
-      <a href="https://zarlcorp.github.io" class="nav-brand">zarlcorp</a>
-      <a href="index.html">zburn</a>
-      <a href="https://github.com/zarlcorp/zburn">github</a>
+      <div class="prompt">
+        <span class="prompt-user">zarlcorp</span><span class="prompt-sep">:</span><span class="prompt-path">~/zburn/docs</span><span class="prompt-dollar">$</span>
+      </div>
+      <div class="nav-links">
+        <a href="index.html">zburn</a>
+        <a href="https://github.com/zarlcorp/zburn">github</a>
+      </div>
     </div>
   </nav>
 
   <div class="container docs-page">
 
-    <div class="window">
-      <div class="window-title">interactive tui</div>
-      <div class="window-content">
+    <div class="card">
+      <div class="card-header">interactive tui</div>
+      <div class="card-content">
         <div class="doc-content">
 
           <p>run <code>zburn</code> with no arguments to launch the interactive terminal interface.</p>
@@ -44,9 +48,9 @@
       </div>
     </div>
 
-    <div class="window">
-      <div class="window-title">cli commands</div>
-      <div class="window-content">
+    <div class="card">
+      <div class="card-header">cli commands</div>
+      <div class="card-content">
         <div class="doc-content">
 
           <h3>generate a burner email</h3>
@@ -102,9 +106,9 @@
       </div>
     </div>
 
-    <div class="window">
-      <div class="window-title">data storage</div>
-      <div class="window-content">
+    <div class="card">
+      <div class="card-header">data storage</div>
+      <div class="card-content">
         <div class="doc-content">
 
           <p>saved identities are encrypted at rest. zburn uses <strong>AES-256-GCM</strong> for encryption with a master key derived from your password via <strong>Argon2id</strong> key derivation.</p>
